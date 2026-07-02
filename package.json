@@ -1,11 +1,11 @@
 {
-  "name": "sshx",
+  "name": "@ahmdrv/sshx",
   "version": "0.1.0",
   "description": "A lightweight terminal SSH manager inspired by Termius, LazyGit, and modern AI CLIs.",
   "type": "module",
   "packageManager": "bun@1.3.1",
   "bin": {
-    "sshx": "./dist/cli/index.js"
+    "sshx": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -13,6 +13,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

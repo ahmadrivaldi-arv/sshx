@@ -18,7 +18,7 @@ Configuration is stored at `~/.config/sshx/config.json` on macOS/Linux.
 After the package is published to npm:
 
 ```bash
-npm install -g sshx
+npm install -g @ahmdrv/sshx
 sshx
 ```
 
@@ -28,7 +28,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./sshx-0.1.0.tgz
+npm install -g ./ahmdrv-sshx-0.1.0.tgz
 sshx
 ```
 
