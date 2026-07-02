@@ -1,34 +1,46 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box } from 'ink';
 
 interface FrameProps {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
-  footer: string;
+  footer: React.ReactNode;
+  subtitle?: React.ReactNode;
 }
 
-export const Frame = ({ title, children, footer }: FrameProps): React.ReactElement => (
-  <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+export const Frame = ({ title, children, footer, subtitle }: FrameProps): React.ReactElement => (
+  <Box flexDirection="column" paddingX={2} paddingY={1}>
+    {/* Header */}
     <Box
+      justifyContent="space-between"
       borderStyle="single"
       borderTop={false}
       borderLeft={false}
       borderRight={false}
       borderColor="gray"
+      paddingBottom={1}
+      marginBottom={1}
     >
-      <Text bold>{title}</Text>
+      <Box>{title}</Box>
+      {subtitle ? <Box>{subtitle}</Box> : null}
     </Box>
-    <Box flexDirection="column" minHeight={12}>
+
+    {/* Content */}
+    <Box flexDirection="column" minHeight={12} marginBottom={1}>
       {children}
     </Box>
+
+    {/* Footer */}
     <Box
       borderStyle="single"
       borderBottom={false}
       borderLeft={false}
       borderRight={false}
       borderColor="gray"
+      paddingTop={1}
+      width="100%"
     >
-      <Text color="gray">{footer}</Text>
+      {footer}
     </Box>
   </Box>
 );
