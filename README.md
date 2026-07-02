@@ -13,7 +13,7 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 
 ![Sshx terminal UI](screenshots/sshx.png)
 
-[Watch the demo video](screenshots/sshx-demo.gif)
+[Watch the demo video](screenshots/sshx-demo.mp4)
 
 ## Features
 
