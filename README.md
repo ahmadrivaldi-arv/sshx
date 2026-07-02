@@ -28,7 +28,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.1.0.tgz
+npm install -g ./ahmdrv-sshx-0.2.0.tgz
 sshx
 ```
 
