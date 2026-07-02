@@ -50,8 +50,12 @@ export const ConnectionTree = ({
 
   return (
     <Box flexDirection="column">
-      {groups.map((group) => (
-        <Box key={group.group} flexDirection="column" marginBottom={1}>
+      {groups.map((group, groupIndex) => (
+        <Box
+          key={group.group}
+          flexDirection="column"
+          marginTop={groupIndex === 0 ? 0 : 1}
+        >
           <Box marginBottom={0.5}>
             {group.group === 'Favorites' ? (
               <Text color="yellow" bold dimColor>
