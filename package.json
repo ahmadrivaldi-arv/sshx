@@ -5,10 +5,11 @@
   "type": "module",
   "packageManager": "bun@1.3.1",
   "bin": {
-    "sshx": "dist/cli/index.js"
+    "sshx": "dist/src/cli/index.js"
   },
   "files": [
     "dist",
+    "package.json",
     "scripts",
     "README.md",
     "LICENSE"
@@ -20,12 +21,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "bun run build && node dist/cli/index.js",
-    "build": "tsc -p tsconfig.json",
+    "dev": "bun run build && node dist/src/cli/index.js",
+    "build": "node scripts/clean.js && tsc -p tsconfig.json",
     "check": "bun run typecheck && bun run lint && bun run test && bun run build",
     "prepack": "bun run check",
     "postinstall": "node scripts/fix-node-pty-permissions.js",
-    "start": "node dist/cli/index.js",
+    "start": "node dist/src/cli/index.js",
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -19,6 +19,7 @@ import { PtySshSession } from '../services/ssh/pty-ssh-session.js';
 import { SecretService } from '../services/ssh/secret-service.js';
 import type { SshConnection } from '../types/connection.js';
 import { handleCliError } from '../utils/error-handler.js';
+import packageJson from '../../package.json' with { type: 'json' };
 
 const runTui = async (
   connectionService: ConnectionService,
@@ -56,7 +57,7 @@ const main = async (): Promise<void> => {
   program
     .name('sshx')
     .description('A modern terminal SSH manager')
-    .version('0.1.0')
+    .version(packageJson.version)
     .action(async (): Promise<void> => {
       await runTui(connectionService, session);
     });
