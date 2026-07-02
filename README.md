@@ -15,7 +15,8 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 
 ## Demo Video
 
-<video src="https://raw.githubusercontent.com/ahmadrivaldi-arv/sshx/main/screenshots/sshx-demo.mp4" controls="controls" muted="muted" width="100%"></video>
+![Demo Video](screenshots/sshx-demo.gif)
+[Demo video](screenshots/sshx-demo.mp4)
 
 ## Features
 
