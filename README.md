@@ -9,6 +9,8 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 [![typescript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
 [![package](https://img.shields.io/badge/package-%40ahmdrv%2Fsshx-0f172a)](https://github.com/ahmadrivaldi-arv/sshx)
 
+See the planned work in [ROADMAP.md](ROADMAP.md).
+
 ## Screenshot
 
 ![Sshx terminal UI](screenshots/sshx.png)
