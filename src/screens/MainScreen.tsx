@@ -83,6 +83,10 @@ const toConnectionInput = (form: FormState): ConnectionInput => ({
     .filter(Boolean)
 });
 
+const clearTerminal = (): void => {
+  process.stdout.write('\x1B[2J\x1B[3J\x1B[H');
+};
+
 export const MainScreen = ({
   connectionService,
   onConnect
@@ -101,8 +105,13 @@ export const MainScreen = ({
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
   const selectedConnection = visibleConnections[selectedIndex];
 
+  const switchMode = (nextMode: ScreenMode): void => {
+    clearTerminal();
+    setMode(nextMode);
+  };
+
   const resetMode = (): void => {
-    setMode('browse');
+    switchMode('browse');
     setForm(emptyForm);
     setFieldIndex(0);
     setEditingId(undefined);
@@ -158,7 +167,7 @@ export const MainScreen = ({
 
     void mutation
       .then((connection) => {
-        setMessage(`${mode === 'add' ? 'Added' : ' Updated'} ${connection.name}`);
+        setMessage(`${mode === 'add' ? ' Added' : ' Updated'} ${connection.name}`);
         resetMode();
         setSelectedIndex(0);
         return reload(options);
@@ -184,7 +193,7 @@ export const MainScreen = ({
       if (key.return) {
         if (query === 'add') {
           setQuery('');
-          setMode('add');
+          switchMode('add');
           setForm(emptyForm);
           setFieldIndex(0);
           setMessage('');
@@ -248,11 +257,11 @@ export const MainScreen = ({
     if (input === 'q') {
       app.exit();
     } else if (input === '/') {
-      setMode('search');
+      switchMode('search');
       setQuery('');
       setMessage('');
     } else if (input === 'a') {
-      setMode('add');
+      switchMode('add');
       setForm(emptyForm);
       setFieldIndex(0);
       setMessage('');
@@ -260,7 +269,7 @@ export const MainScreen = ({
       const selected = selectedConnection;
 
       if (selected) {
-        setMode('edit');
+        switchMode('edit');
         setEditingId(selected.id);
         setForm(createEditForm(selected));
         setFieldIndex(0);
@@ -271,7 +280,7 @@ export const MainScreen = ({
 
       if (selected) {
         setDeleteTarget(selected);
-        setMode('delete-confirm');
+        switchMode('delete-confirm');
         setMessage('');
       }
     } else if (input === 'f') {
@@ -475,7 +484,7 @@ export const MainScreen = ({
         <Box flexDirection="column" marginY={1}>
           <Box marginBottom={1}>
             <Text color="red" bold>
-              ⚠️ Delete Connection
+              ⚠️  Delete Connection
             </Text>
           </Box>
           <Box marginBottom={1} paddingLeft={2}>

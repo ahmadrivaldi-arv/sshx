@@ -2,6 +2,25 @@
 
 A modern terminal SSH manager for managing SSH vaults, hosts, and interactive sessions from a keyboard-driven TUI.
 
+[![npm version](https://img.shields.io/npm/v/%40ahmdrv%2Fsshx?color=%23f97316)](https://www.npmjs.com/package/@ahmdrv/sshx)
+[![npm downloads](https://img.shields.io/npm/dm/%40ahmdrv%2Fsshx)](https://www.npmjs.com/package/@ahmdrv/sshx)
+[![license](https://img.shields.io/npm/l/%40ahmdrv%2Fsshx)](LICENSE)
+[![node](https://img.shields.io/node/v/%40ahmdrv%2Fsshx)](package.json)
+[![typescript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
+[![package](https://img.shields.io/badge/package-%40ahmdrv%2Fsshx-0f172a)](https://github.com/ahmadrivaldi-arv/sshx)
+
+See the planned work in [ROADMAP.md](ROADMAP.md).
+
+## Screenshot
+
+![Sshx terminal UI](screenshots/sshx.png)
+
+## Demo Video
+
+![Demo Video](screenshots/sshx-demo.gif)
+
+[View source video](screenshots/sshx-demo.mp4)
+
 ## Features
 
 - Interactive terminal UI for browsing and connecting to SSH hosts.

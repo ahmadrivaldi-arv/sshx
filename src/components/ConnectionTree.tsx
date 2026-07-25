@@ -56,7 +56,7 @@ export const ConnectionTree = ({
           flexDirection="column"
           marginTop={groupIndex === 0 ? 0 : 1}
         >
-          <Box marginBottom={0.5}>
+          <Box marginBottom={1}>
             {group.group === 'Favorites' ? (
               <Text color="yellow" bold dimColor>
                 {group.group.toUpperCase()}
