@@ -11,6 +11,11 @@ export const connectionColorSchema = z.enum([
   'gray'
 ]);
 
+export const sshOptionsSchema = z.record(
+  z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/, 'Invalid SSH option name'),
+  z.string().min(1)
+);
+
 export const sshConnectionSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
@@ -23,6 +28,8 @@ export const sshConnectionSchema = z.object({
   tags: z.array(z.string().min(1)).default([]),
   color: connectionColorSchema.optional(),
   favorite: z.boolean().default(false),
+  sshOptions: sshOptionsSchema.default({}),
+  suppressWeakCryptoWarning: z.boolean().default(false),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   lastConnectedAt: z.string().datetime().optional()

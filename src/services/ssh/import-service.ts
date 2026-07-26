@@ -51,7 +51,9 @@ export class ImportService {
         ...(connection.group ? { group: connection.group } : {}),
         tags: connection.tags,
         ...(connection.color ? { color: connection.color } : {}),
-        favorite: connection.favorite
+        favorite: connection.favorite,
+        sshOptions: connection.sshOptions,
+        suppressWeakCryptoWarning: connection.suppressWeakCryptoWarning
       }));
 
       return this.addImportedConnections(inputs);

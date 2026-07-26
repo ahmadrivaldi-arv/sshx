@@ -63,9 +63,12 @@ export class ConnectionService {
 
   public async add(input: ConnectionInput): Promise<SshConnection> {
     const config = await this.configService.load();
+    const name = input.name.trim();
 
-    if (config.connections.some((connection) => connection.name === input.name)) {
-      throw new AppError('CONNECTION_DUPLICATE', `Connection "${input.name}" already exists`);
+    if (
+      config.connections.some((connection) => connection.name.toLowerCase() === name.toLowerCase())
+    ) {
+      throw new AppError('CONNECTION_DUPLICATE', `Connection "${name}" already exists`);
     }
 
     const now = new Date().toISOString();
@@ -75,16 +78,18 @@ export class ConnectionService {
       : undefined;
     const connection: SshConnection = {
       id,
-      name: input.name,
-      host: input.host,
+      name,
+      host: input.host.trim(),
       port: input.port ?? 22,
-      username: input.username,
+      username: input.username.trim(),
       ...(input.identityFile ? { identityFile: input.identityFile } : {}),
       ...(passwordSecretRef ? { passwordSecretRef } : {}),
       ...(input.group ? { group: input.group } : {}),
       tags: input.tags ?? [],
       ...(input.color ? { color: input.color } : {}),
       favorite: input.favorite ?? false,
+      sshOptions: input.sshOptions ?? {},
+      suppressWeakCryptoWarning: input.suppressWeakCryptoWarning ?? false,
       createdAt: now,
       updatedAt: now
     };
@@ -104,8 +109,25 @@ export class ConnectionService {
 
     const updated: SshConnection = this.applyPatch(current, patch);
 
+    if (
+      config.connections.some(
+        (connection) =>
+          connection.id !== id && connection.name.toLowerCase() === updated.name.toLowerCase()
+      )
+    ) {
+      throw new AppError('CONNECTION_DUPLICATE', `Connection "${updated.name}" already exists`);
+    }
+
     if (patch.password !== undefined) {
-      updated.passwordSecretRef = await this.secretService.savePassword(current.id, patch.password);
+      if (patch.password) {
+        updated.passwordSecretRef = await this.secretService.savePassword(
+          current.id,
+          patch.password
+        );
+      } else {
+        await this.secretService.deletePassword(current.passwordSecretRef);
+        delete updated.passwordSecretRef;
+      }
     }
 
     config.connections[index] = updated;
@@ -136,12 +158,35 @@ export class ConnectionService {
     const index = this.findIndex(config.connections, id);
     const source = this.getConnectionAt(config.connections, index);
     const now = new Date().toISOString();
-    const { lastConnectedAt: _lastConnectedAt, ...sourceWithoutRecent } = source;
+    const {
+      lastConnectedAt: _lastConnectedAt,
+      passwordSecretRef: _passwordSecretRef,
+      ...sourceWithoutRecent
+    } = source;
+    const existingNames = new Set(
+      config.connections.map((connection) => connection.name.toLowerCase())
+    );
+    let copyNumber = 1;
+    let duplicateName = `${source.name} Copy`;
+
+    while (existingNames.has(duplicateName.toLowerCase())) {
+      copyNumber += 1;
+      duplicateName = `${source.name} Copy ${copyNumber}`;
+    }
+
+    const duplicateId = createId();
+    const password = source.passwordSecretRef
+      ? await this.secretService.getPassword(source.passwordSecretRef)
+      : undefined;
+    const passwordSecretRef = password
+      ? await this.secretService.savePassword(duplicateId, password)
+      : undefined;
 
     const duplicate: SshConnection = {
       ...sourceWithoutRecent,
-      id: createId(),
-      name: `${source.name} Copy`,
+      id: duplicateId,
+      name: duplicateName,
+      ...(passwordSecretRef ? { passwordSecretRef } : {}),
       favorite: false,
       createdAt: now,
       updatedAt: now
@@ -217,15 +262,28 @@ export class ConnectionService {
       updatedAt: new Date().toISOString()
     };
 
-    if (patch.name !== undefined) updated.name = patch.name;
-    if (patch.host !== undefined) updated.host = patch.host;
+    if (patch.name !== undefined) updated.name = patch.name.trim();
+    if (patch.host !== undefined) updated.host = patch.host.trim();
     if (patch.port !== undefined) updated.port = patch.port;
-    if (patch.username !== undefined) updated.username = patch.username;
-    if (patch.identityFile !== undefined) updated.identityFile = patch.identityFile;
-    if (patch.group !== undefined) updated.group = patch.group;
+    if (patch.username !== undefined) updated.username = patch.username.trim();
+    if (patch.identityFile !== undefined) {
+      if (patch.identityFile) updated.identityFile = patch.identityFile.trim();
+      else delete updated.identityFile;
+    }
+    if (patch.group !== undefined) {
+      if (patch.group) updated.group = patch.group.trim();
+      else delete updated.group;
+    }
     if (patch.tags !== undefined) updated.tags = patch.tags;
-    if (patch.color !== undefined) updated.color = patch.color;
+    if (patch.color !== undefined) {
+      if (patch.color) updated.color = patch.color;
+      else delete updated.color;
+    }
     if (patch.favorite !== undefined) updated.favorite = patch.favorite;
+    if (patch.sshOptions !== undefined) updated.sshOptions = patch.sshOptions;
+    if (patch.suppressWeakCryptoWarning !== undefined) {
+      updated.suppressWeakCryptoWarning = patch.suppressWeakCryptoWarning;
+    }
 
     return updated;
   }

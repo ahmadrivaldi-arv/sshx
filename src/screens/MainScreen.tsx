@@ -1,15 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
+import packageJson from '../../package.json' with { type: 'json' };
+import { ConnectionDetail } from '../components/ConnectionDetail.js';
 import { ConnectionTree, getConnectionTreeItems } from '../components/ConnectionTree.js';
 import { Frame } from '../components/Frame.js';
 import { SearchBar } from '../components/SearchBar.js';
-import { ConnectionDetail } from '../components/ConnectionDetail.js';
 import { useConnections } from '../hooks/useConnections.js';
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
-import type { ConnectionInput, SshConnection } from '../types/connection.js';
-import packageJson from '../../package.json' with { type: 'json' };
+import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
+import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/connection.js';
 
-const ACCENT_COLOR = '#f97316'; // Modern Orange Accent
+const ACCENT_COLOR = '#f97316';
 
 interface MainScreenProps {
   connectionService: ConnectionService;
@@ -27,6 +29,8 @@ interface FormState {
   identityFile: string;
   group: string;
   tags: string;
+  sshOptions: string;
+  suppressWeakCryptoWarning: string;
 }
 
 interface FormField {
@@ -34,17 +38,36 @@ interface FormField {
   label: string;
   required: boolean;
   masked?: boolean;
+  hint?: string;
 }
 
 const fields: FormField[] = [
   { key: 'name', label: 'Name', required: true },
   { key: 'host', label: 'Host', required: true },
   { key: 'username', label: 'Username', required: true },
-  { key: 'port', label: 'Port', required: false },
-  { key: 'password', label: 'Password', required: false, masked: true },
+  { key: 'port', label: 'Port', required: true, hint: '1–65535' },
+  {
+    key: 'password',
+    label: 'Password',
+    required: false,
+    masked: true,
+    hint: 'blank keeps the current password'
+  },
   { key: 'identityFile', label: 'Identity file', required: false },
   { key: 'group', label: 'Group', required: false },
-  { key: 'tags', label: 'Tags', required: false }
+  { key: 'tags', label: 'Tags', required: false, hint: 'comma separated' },
+  {
+    key: 'sshOptions',
+    label: 'SSH options',
+    required: false,
+    hint: 'Key=Value, Key=Value'
+  },
+  {
+    key: 'suppressWeakCryptoWarning',
+    label: 'Hide weak warning',
+    required: true,
+    hint: 'yes or no'
+  }
 ];
 
 const emptyForm: FormState = {
@@ -55,7 +78,9 @@ const emptyForm: FormState = {
   password: '',
   identityFile: '',
   group: '',
-  tags: ''
+  tags: '',
+  sshOptions: '',
+  suppressWeakCryptoWarning: 'no'
 };
 
 const createEditForm = (connection: SshConnection): FormState => ({
@@ -66,229 +91,324 @@ const createEditForm = (connection: SshConnection): FormState => ({
   password: '',
   identityFile: connection.identityFile ?? '',
   group: connection.group ?? '',
-  tags: connection.tags.join(', ')
+  tags: connection.tags.join(', '),
+  sshOptions: formatSshOptions(connection.sshOptions),
+  suppressWeakCryptoWarning: connection.suppressWeakCryptoWarning ? 'yes' : 'no'
 });
+
+const parseTags = (value: string): string[] =>
+  value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+const parseBoolean = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+
+  if (['yes', 'y', 'true', '1', 'on'].includes(normalized)) return true;
+  if (['no', 'n', 'false', '0', 'off'].includes(normalized)) return false;
+
+  throw new Error('Hide weak warning must be yes or no');
+};
+
+const validateForm = (form: FormState): string | undefined => {
+  const missing = fields.find((field) => field.required && !form[field.key].trim());
+
+  if (missing) return `${missing.label} is required`;
+
+  const port = Number(form.port);
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return 'Port must be an integer from 1 to 65535';
+  }
+
+  try {
+    parseSshOptionsText(form.sshOptions);
+    parseBoolean(form.suppressWeakCryptoWarning);
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Invalid connection options';
+  }
+
+  return undefined;
+};
 
 const toConnectionInput = (form: FormState): ConnectionInput => ({
   name: form.name.trim(),
   host: form.host.trim(),
   username: form.username.trim(),
-  port: Number(form.port.trim() || '22'),
+  port: Number(form.port),
   ...(form.password ? { password: form.password } : {}),
   ...(form.identityFile.trim() ? { identityFile: form.identityFile.trim() } : {}),
   ...(form.group.trim() ? { group: form.group.trim() } : {}),
-  tags: form.tags
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean)
+  tags: parseTags(form.tags),
+  sshOptions: parseSshOptionsText(form.sshOptions),
+  suppressWeakCryptoWarning: parseBoolean(form.suppressWeakCryptoWarning)
 });
 
-const clearTerminal = (): void => {
-  process.stdout.write('\x1B[2J\x1B[3J\x1B[H');
-};
+const toConnectionPatch = (form: FormState): ConnectionPatch => ({
+  name: form.name.trim(),
+  host: form.host.trim(),
+  username: form.username.trim(),
+  port: Number(form.port),
+  ...(form.password ? { password: form.password } : {}),
+  identityFile: form.identityFile.trim() || null,
+  group: form.group.trim() || null,
+  tags: parseTags(form.tags),
+  sshOptions: parseSshOptionsText(form.sshOptions),
+  suppressWeakCryptoWarning: parseBoolean(form.suppressWeakCryptoWarning)
+});
 
 export const MainScreen = ({
   connectionService,
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
-  const [query, setQuery] = useState<string>('');
+  const { columns, rows } = useTerminalSize();
+  const [forceCompact, setForceCompact] = useState(false);
+  const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ScreenMode>('browse');
-  const [message, setMessage] = useState<string>('');
+  const [message, setMessage] = useState('');
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [fieldIndex, setFieldIndex] = useState<number>(0);
-  const [editingId, setEditingId] = useState<string | undefined>();
-  const [deleteTarget, setDeleteTarget] = useState<SshConnection | undefined>();
-  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [fieldIndex, setFieldIndex] = useState(0);
+  const [editingId, setEditingId] = useState<string>();
+  const [deleteTarget, setDeleteTarget] = useState<SshConnection>();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [saving, setSaving] = useState(false);
   const options = useMemo(() => ({ search: query }), [query]);
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
   const selectedConnection = visibleConnections[selectedIndex];
+  const compact = forceCompact || columns < 100 || rows < 24;
+  const maxVisible = Math.max(Math.floor((rows - (compact ? 11 : 8)) / 2), 1);
 
-  const switchMode = (nextMode: ScreenMode): void => {
-    clearTerminal();
-    setMode(nextMode);
-  };
+  useEffect(() => {
+    setSelectedIndex((current) => Math.min(current, Math.max(visibleConnections.length - 1, 0)));
+  }, [visibleConnections.length]);
 
   const resetMode = (): void => {
-    switchMode('browse');
+    setMode('browse');
     setForm(emptyForm);
     setFieldIndex(0);
     setEditingId(undefined);
     setDeleteTarget(undefined);
+    setSaving(false);
   };
 
   const connectSelected = (): void => {
-    const selected = selectedConnection;
-
-    if (selected) {
-      onConnect(selected);
+    if (selectedConnection) {
+      onConnect(selectedConnection);
       app.exit();
     }
   };
 
-  const saveForm = (force = false): void => {
+  const moveField = (delta: number): void => {
+    setFieldIndex((current) => Math.min(Math.max(current + delta, 0), fields.length - 1));
+    setMessage('');
+  };
+
+  const saveForm = (advanceOnly: boolean): void => {
+    if (saving) return;
+
     const field = fields[fieldIndex];
 
-    if (!field) {
-      return;
-    }
+    if (!field) return;
 
-    const value = form[field.key].trim();
-
-    if (!force && field.required && !value) {
+    if (advanceOnly && field.required && !form[field.key].trim()) {
       setMessage(`${field.label} is required`);
       return;
     }
 
-    if (!force && fieldIndex < fields.length - 1) {
-      setFieldIndex((current) => current + 1);
-      setMessage('');
+    if (advanceOnly && fieldIndex < fields.length - 1) {
+      moveField(1);
       return;
     }
 
-    const missingRequiredField = fields.find(
-      (candidate) => candidate.required && !form[candidate.key].trim()
-    );
+    const validationError = validateForm(form);
 
-    if (missingRequiredField) {
-      setFieldIndex(fields.indexOf(missingRequiredField));
-      setMessage(`${missingRequiredField.label} is required`);
+    if (validationError) {
+      const invalidField = fields.findIndex((candidate) =>
+        validationError.startsWith(candidate.label)
+      );
+
+      if (invalidField >= 0) setFieldIndex(invalidField);
+      setMessage(validationError);
       return;
     }
 
-    const input = toConnectionInput(form);
+    setSaving(true);
+    setMessage('');
+
     const mutation =
       mode === 'add'
-        ? connectionService.add(input)
+        ? connectionService.add(toConnectionInput(form))
         : editingId
-          ? connectionService.update(editingId, input)
+          ? connectionService.update(editingId, toConnectionPatch(form))
           : Promise.reject(new Error('No connection selected'));
 
     void mutation
-      .then((connection) => {
-        setMessage(`${mode === 'add' ? ' Added' : ' Updated'} ${connection.name}`);
+      .then(async (connection) => {
+        const action = mode === 'add' ? 'Added' : 'Updated';
         resetMode();
+        setQuery('');
         setSelectedIndex(0);
-        return reload(options);
+        setMessage(`${action} ${connection.name}`);
+        await reload({});
       })
       .catch((caughtError: unknown) => {
+        setSaving(false);
         setMessage(
           caughtError instanceof Error ? caughtError.message : 'Failed to save connection'
         );
       });
   };
 
+  const deleteConnection = (): void => {
+    if (!deleteTarget || saving) return;
+
+    setSaving(true);
+    setMessage('');
+
+    void connectionService
+      .delete(deleteTarget.id)
+      .then(async () => {
+        const deletedName = deleteTarget.name;
+        resetMode();
+        setQuery('');
+        setMessage(`Deleted ${deletedName}`);
+        await reload({});
+      })
+      .catch((caughtError: unknown) => {
+        setSaving(false);
+        setMessage(
+          caughtError instanceof Error ? caughtError.message : 'Failed to delete connection'
+        );
+      });
+  };
+
   useInput((input, key) => {
     if (key.escape) {
-      if (mode === 'add' || mode === 'edit' || mode === 'delete-confirm' || mode === 'search') {
+      if (mode !== 'browse') {
         resetMode();
         setQuery('');
         setSelectedIndex(0);
+        setMessage('');
       }
       return;
     }
 
     if (mode === 'search') {
       if (key.return) {
-        if (query === 'add') {
+        if (query.trim().toLowerCase() === 'add') {
           setQuery('');
-          switchMode('add');
+          setMode('add');
           setForm(emptyForm);
           setFieldIndex(0);
           setMessage('');
-          return;
+        } else {
+          connectSelected();
         }
-
-        connectSelected();
+      } else if (key.downArrow) {
+        setSelectedIndex((current) =>
+          Math.min(current + 1, Math.max(visibleConnections.length - 1, 0))
+        );
+      } else if (key.upArrow) {
+        setSelectedIndex((current) => Math.max(current - 1, 0));
       } else if (key.backspace || key.delete) {
         setQuery((current) => current.slice(0, -1));
         setSelectedIndex(0);
-      } else if (input) {
+      } else if (input && !key.ctrl && !key.meta) {
         setQuery((current) => `${current}${input}`);
         setSelectedIndex(0);
       }
-
       return;
     }
 
     if (mode === 'add' || mode === 'edit') {
       const field = fields[fieldIndex];
 
-      if (!field) {
-        return;
-      }
+      if (!field || saving) return;
 
       if (key.ctrl && input === 's') {
-        saveForm(true);
+        saveForm(false);
       } else if (key.return) {
-        saveForm();
+        saveForm(true);
+      } else if (key.tab || key.downArrow) {
+        moveField(key.shift ? -1 : 1);
+      } else if (key.upArrow) {
+        moveField(-1);
       } else if (key.backspace || key.delete) {
         setForm((current) => ({
           ...current,
           [field.key]: current[field.key].slice(0, -1)
         }));
-      } else if (input) {
+        setMessage('');
+      } else if (key.ctrl && input === 'u') {
+        setForm((current) => ({
+          ...current,
+          [field.key]: ''
+        }));
+        setMessage('');
+      } else if (input && !key.ctrl && !key.meta) {
         setForm((current) => ({
           ...current,
           [field.key]: `${current[field.key]}${input}`
         }));
+        setMessage('');
       }
-
       return;
     }
 
     if (mode === 'delete-confirm') {
-      if (input.toLowerCase() === 'y' && deleteTarget) {
-        void connectionService.delete(deleteTarget.id).then(() => {
-          setMessage(` Deleted ${deleteTarget.name}`);
-          resetMode();
-          setSelectedIndex(0);
-          return reload(options);
-        });
+      if (input.toLowerCase() === 'y') {
+        deleteConnection();
       } else if (input.toLowerCase() === 'n' || key.return) {
-        setMessage('Delete cancelled');
         resetMode();
+        setMessage('Delete cancelled');
       }
-
       return;
     }
 
     if (input === 'q') {
       app.exit();
     } else if (input === '/') {
-      switchMode('search');
+      setMode('search');
       setQuery('');
       setMessage('');
     } else if (input === 'a') {
-      switchMode('add');
+      setMode('add');
       setForm(emptyForm);
       setFieldIndex(0);
       setMessage('');
-    } else if (input === 'e') {
-      const selected = selectedConnection;
+    } else if (input === 'e' && selectedConnection) {
+      setMode('edit');
+      setEditingId(selectedConnection.id);
+      setForm(createEditForm(selectedConnection));
+      setFieldIndex(0);
+      setMessage('');
+    } else if (input === 'd' && selectedConnection) {
+      setDeleteTarget(selectedConnection);
+      setMode('delete-confirm');
+      setMessage('');
+    } else if (input === 'f' && selectedConnection) {
+      void connectionService
+        .toggleFavorite(selectedConnection.id)
+        .then(async (connection) => {
+          const nextConnections = await reload(options);
+          const nextItems = getConnectionTreeItems(nextConnections);
+          const nextIndex = nextItems.findIndex((item) => item.id === connection.id);
 
-      if (selected) {
-        switchMode('edit');
-        setEditingId(selected.id);
-        setForm(createEditForm(selected));
-        setFieldIndex(0);
-        setMessage('');
-      }
-    } else if (input === 'd') {
-      const selected = selectedConnection;
-
-      if (selected) {
-        setDeleteTarget(selected);
-        switchMode('delete-confirm');
-        setMessage('');
-      }
-    } else if (input === 'f') {
-      const selected = selectedConnection;
-
-      if (selected) {
-        void connectionService.toggleFavorite(selected.id).then(() => reload(options));
-      }
+          if (nextIndex >= 0) setSelectedIndex(nextIndex);
+        })
+        .catch((caughtError: unknown) => {
+          setMessage(
+            caughtError instanceof Error ? caughtError.message : 'Failed to update connection'
+          );
+        });
+    } else if (input === 'c') {
+      setForceCompact((current) => !current);
+      setMessage(forceCompact ? 'Automatic layout enabled' : 'Compact layout enabled');
+    } else if (input === 'r') {
+      void reload(options);
     } else if (key.downArrow || input === 'j') {
       setSelectedIndex((current) =>
         Math.min(current + 1, Math.max(visibleConnections.length - 1, 0))
@@ -300,236 +420,160 @@ export const MainScreen = ({
     }
   });
 
-  const titleNode = (
-    <Box flexDirection="row" alignItems="center">
-      <Text color={ACCENT_COLOR} bold>
-        ✦ sshx
-      </Text>
-      <Text color="gray" dimColor>
-        {' '}
-        v{packageJson.version}
-      </Text>
-    </Box>
-  );
+  const subtitle =
+    mode === 'browse'
+      ? `${connections.length} connection${connections.length === 1 ? '' : 's'}`
+      : mode === 'search'
+        ? `search • ${connections.length} found`
+        : mode === 'delete-confirm'
+          ? 'confirm delete'
+          : mode;
 
-  const subtitleNode = (
-    <Text color="gray" dimColor>
-      {mode === 'browse'
-        ? `${connections.length} connection${connections.length === 1 ? '' : 's'}`
+  const footerText =
+    mode === 'add' || mode === 'edit'
+      ? compact
+        ? '↑↓ field  ^U clear  ⏎ next  ^S save  esc cancel'
+        : '↑↓/tab field  •  ctrl+u clear  •  ⏎ next  •  ctrl+s save  •  esc cancel'
+      : mode === 'delete-confirm'
+        ? 'y confirm  •  n/esc cancel'
         : mode === 'search'
-          ? `search • ${connections.length} found`
-          : mode === 'delete-confirm'
-            ? 'confirm delete'
-            : mode}
-    </Text>
-  );
+          ? '↑↓ select  •  ⏎ connect  •  esc clear/back'
+          : compact
+            ? '⏎ connect  / search  a add  e edit  d delete  q quit'
+            : '⏎ connect  •  / search  •  a add  •  e edit  •  f fav  •  d delete  •  c compact  •  q quit';
 
-  const footerNode = (
-    <Box justifyContent="space-between" width="100%">
-      <Text color="gray">
-        {mode === 'add' || mode === 'edit' ? (
-          <>
-            <Text color={ACCENT_COLOR} bold>
-              ⏎
-            </Text>{' '}
-            {fieldIndex === fields.length - 1 ? 'save' : 'next'}{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              ctrl+s
-            </Text>{' '}
-            save{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              esc
-            </Text>{' '}
-            cancel
-          </>
-        ) : mode === 'delete-confirm' ? (
-          <>
-            <Text color="red" bold>
-              y
-            </Text>{' '}
-            confirm{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              n/esc
-            </Text>{' '}
-            cancel
-          </>
-        ) : mode === 'search' ? (
-          <>
-            <Text color={ACCENT_COLOR} bold>
-              ⏎
-            </Text>{' '}
-            connect{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              esc
-            </Text>{' '}
-            clear/back
-          </>
-        ) : (
-          <>
-            <Text color={ACCENT_COLOR} bold>
-              ⏎
-            </Text>{' '}
-            connect{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              /
-            </Text>{' '}
-            search{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              a
-            </Text>{' '}
-            add{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              e
-            </Text>{' '}
-            edit{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              f
-            </Text>{' '}
-            fav{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              d
-            </Text>{' '}
-            delete{' '}
-            <Text color="gray" dimColor>
-              •
-            </Text>{' '}
-            <Text color={ACCENT_COLOR} bold>
-              q
-            </Text>{' '}
-            quit
-          </>
-        )}
-      </Text>
-      {message ? (
-        <Text color="yellow" bold>
-          ⚠️ {message}
-        </Text>
-      ) : null}
-    </Box>
-  );
+  const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
   return (
-    <Frame title={titleNode} subtitle={subtitleNode} footer={footerNode}>
+    <Frame
+      title={
+        <Text color={ACCENT_COLOR} bold>
+          ✦ sshx
+          <Text color="gray" dimColor>
+            {' '}
+            v{packageJson.version}
+          </Text>
+        </Text>
+      }
+      subtitle={!compact ? <Text color="gray">{subtitle}</Text> : undefined}
+      footer={
+        <Box flexDirection="column" width="100%">
+          <Text color="gray">{footerText}</Text>
+          {message ? <Text color="yellow">⚠ {message}</Text> : null}
+        </Box>
+      }
+      compact={compact}
+      height={rows}
+    >
       {mode === 'add' || mode === 'edit' ? (
-        <Box flexDirection="column" marginBottom={1}>
-          <Box justifyContent="space-between" marginBottom={1}>
+        <Box flexDirection="column" overflow="hidden">
+          <Box justifyContent="space-between" marginBottom={compact ? 0 : 1}>
             <Text color={ACCENT_COLOR} bold>
-              {mode === 'add' ? '✦ Add Connection' : '✦ Edit Connection'}
+              {mode === 'add' ? 'Add Connection' : 'Edit Connection'}
+              {saving ? ' — saving…' : ''}
             </Text>
-            <Text color="gray" dimColor>
-              {fieldIndex + 1} of {fields.length}
+            <Text color="gray">
+              {fieldIndex + 1}/{fields.length}
             </Text>
           </Box>
-          <Box flexDirection="column">
-            {fields.map((field, index) => {
-              const value = form[field.key];
-              const displayValue = field.masked ? '*'.repeat(value.length) : value;
-              const active = index === fieldIndex;
+          {formFields.map((field) => {
+            const index = fields.indexOf(field);
+            const value = form[field.key];
+            const displayValue = field.masked ? '*'.repeat(value.length) : value;
+            const active = index === fieldIndex;
 
-              return (
-                <Box key={field.key} flexDirection="row" marginBottom={0.5}>
+            return (
+              <Box key={field.key} flexDirection="column" marginBottom={compact ? 0 : 1}>
+                <Box>
                   <Text color={active ? ACCENT_COLOR : 'gray'} bold={active}>
                     {active ? '❯ ' : '  '}
+                    {field.label.padEnd(compact ? 0 : 18)}
+                    {compact ? ': ' : ''}
                   </Text>
-                  <Box width={16}>
-                    <Text color={active ? ACCENT_COLOR : 'gray'} bold={active} dimColor={!active}>
-                      {field.label}
-                    </Text>
-                  </Box>
-                  <Box>
-                    {active ? (
-                      <Text color={ACCENT_COLOR}>
-                        {displayValue || (field.required ? 'type value...' : 'optional...')}
-                        <Text color={ACCENT_COLOR} bold>
-                          ▊
-                        </Text>
-                      </Text>
-                    ) : (
-                      <Text dimColor>{displayValue || (field.required ? '(required)' : '—')}</Text>
-                    )}
-                  </Box>
+                  <Text {...(active ? { color: ACCENT_COLOR } : {})} dimColor={!active}>
+                    {displayValue || (field.required ? '(required)' : '—')}
+                    {active ? '▊' : ''}
+                  </Text>
                 </Box>
-              );
-            })}
-          </Box>
+                {active && field.hint ? (
+                  <Text color="gray" dimColor>
+                    {'  '}
+                    {field.hint}
+                  </Text>
+                ) : null}
+              </Box>
+            );
+          })}
         </Box>
       ) : mode === 'delete-confirm' ? (
-        <Box flexDirection="column" marginY={1}>
-          <Box marginBottom={1}>
-            <Text color="red" bold>
-              ⚠️  Delete Connection
-            </Text>
-          </Box>
-          <Box marginBottom={1} paddingLeft={2}>
-            <Text>
-              Are you sure you want to delete <Text bold>{deleteTarget?.name}</Text> (
-              {deleteTarget?.username}@{deleteTarget?.host})?
-            </Text>
-          </Box>
-          <Box paddingLeft={2}>
-            <Text color="gray" dimColor>
-              This action cannot be undone.
-            </Text>
-          </Box>
+        <Box
+          flexDirection="column"
+          borderStyle={compact ? undefined : 'round'}
+          borderColor="red"
+          paddingX={compact ? 0 : 2}
+          paddingY={compact ? 0 : 1}
+        >
+          <Text color="red" bold>
+            Delete “{deleteTarget?.name}”?
+          </Text>
+          <Text>
+            {deleteTarget?.username}@{deleteTarget?.host}:{deleteTarget?.port}
+          </Text>
+          <Text color="red">This permanently removes the connection and stored password.</Text>
+          {saving ? <Text color="yellow">Deleting…</Text> : null}
         </Box>
       ) : (
-        <Box flexDirection="row" flexGrow={1} height="100%">
-          {/* Left Column: Search & Navigator */}
+        <Box flexDirection={compact ? 'column' : 'row'} flexGrow={1} overflow="hidden">
           <Box
             flexDirection="column"
-            width={60}
-            borderStyle="single"
+            width={compact ? '100%' : Math.max(30, Math.min(52, Math.floor(columns * 0.42)))}
+            borderStyle={compact ? undefined : 'single'}
             borderTop={false}
             borderBottom={false}
             borderLeft={false}
-            borderRight={true}
+            borderRight={!compact}
             borderColor="gray"
-            paddingRight={2}
-            marginRight={2}
+            paddingRight={compact ? 0 : 2}
+            marginRight={compact ? 0 : 2}
+            overflow="hidden"
           >
             <SearchBar query={query} active={mode === 'search'} />
             {loading ? (
-              <Text color="gray" dimColor>
-                Loading...
-              </Text>
+              <Box flexDirection="column">
+                <Text color={ACCENT_COLOR}>Loading connections…</Text>
+                <Text color="gray" dimColor>
+                  Reading your local SSH vault
+                </Text>
+              </Box>
             ) : error ? (
-              <Text color="red">Error</Text>
+              <Box flexDirection="column">
+                <Text color="red" bold>
+                  Could not load connections
+                </Text>
+                <Text color="red">{error}</Text>
+                <Text color="gray">Press r to retry.</Text>
+              </Box>
+            ) : connections.length === 0 && query ? (
+              <Box flexDirection="column">
+                <Text color="gray">No matches for “{query}”.</Text>
+                <Text color="gray" dimColor>
+                  Backspace to broaden the search, or Esc to clear it.
+                </Text>
+              </Box>
             ) : (
-              <ConnectionTree connections={connections} selectedIndex={selectedIndex} />
+              <ConnectionTree
+                connections={connections}
+                selectedIndex={selectedIndex}
+                maxVisible={maxVisible}
+                compact={compact}
+              />
             )}
           </Box>
-
-          {/* Right Column: Connection Detail Card */}
-          <Box flexDirection="column" flexGrow={1}>
-            <ConnectionDetail connection={selectedConnection} />
-          </Box>
+          {!loading && !error && selectedConnection ? (
+            <Box flexDirection="column" flexGrow={1} marginTop={compact ? 1 : 0} overflow="hidden">
+              <ConnectionDetail connection={selectedConnection} compact={compact} />
+            </Box>
+          ) : null}
         </Box>
       )}
     </Frame>

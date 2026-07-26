@@ -25,18 +25,34 @@ const runTui = async (
   connectionService: ConnectionService,
   session: PtySshSession
 ): Promise<void> => {
-  process.stdout.write('\x1Bc');
-  let selectedConnection: SshConnection | undefined;
-  const instance = render(
-    <App
-      connectionService={connectionService}
-      onConnect={(connection) => {
-        selectedConnection = connection;
-      }}
-    />
-  );
+  const useAlternateScreen = Boolean(process.stdout.isTTY);
 
-  await instance.waitUntilExit();
+  if (useAlternateScreen) {
+    process.stdout.write('\x1B[?1049h\x1B[2J\x1B[H');
+  }
+
+  let selectedConnection: SshConnection | undefined;
+
+  try {
+    const instance = render(
+      <App
+        connectionService={connectionService}
+        onConnect={(connection) => {
+          selectedConnection = connection;
+        }}
+      />
+    );
+
+    try {
+      await instance.waitUntilExit();
+    } finally {
+      instance.clear();
+    }
+  } finally {
+    if (useAlternateScreen) {
+      process.stdout.write('\x1B[?1049l');
+    }
+  }
 
   if (selectedConnection) {
     await connectionService.markRecent(selectedConnection.id);

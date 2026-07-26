@@ -9,7 +9,8 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 [![typescript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
 [![package](https://img.shields.io/badge/package-%40ahmdrv%2Fsshx-0f172a)](https://github.com/ahmadrivaldi-arv/sshx)
 
-See the planned work in [ROADMAP.md](ROADMAP.md).
+See released changes in [CHANGELOG.md](CHANGELOG.md) and planned work in
+[ROADMAP.md](ROADMAP.md).
 
 ## Screenshot
 
@@ -31,6 +32,8 @@ See the planned work in [ROADMAP.md](ROADMAP.md).
 - Import connections from Sshx JSON/YAML export files.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
+- Per-connection OpenSSH options, including optional weak-crypto warning suppression.
+- Responsive compact layout for small terminals (toggle manually with `c`).
 - Secure password storage:
   - macOS: Keychain
   - Linux: Secret Service via `secret-tool`
@@ -50,7 +53,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.3.1.tgz
+npm install -g ./ahmdrv-sshx-0.4.0.tgz
 sshx
 ```
 
@@ -91,6 +94,7 @@ e      edit selected connection
 Ctrl+S save immediately while adding/editing
 d      delete selected connection with confirmation
 f      toggle favorite
+c      toggle compact layout
 Esc    cancel current mode
 q      quit
 ```
@@ -136,6 +140,17 @@ sshx add "Web-01" \
   --username root \
   --identity-file ~/.ssh/id_ed25519 \
   --group Production
+```
+
+Add OpenSSH options and suppress the weak-crypto warning:
+
+```bash
+sshx add "Legacy Server" \
+  --host 1.2.3.4 \
+  --username root \
+  --ssh-option ServerAliveInterval=30 \
+  --ssh-option StrictHostKeyChecking=accept-new \
+  --suppress-weak-crypto-warning
 ```
 
 List connections:
@@ -209,6 +224,10 @@ Example:
       "tags": ["Laravel", "Ubuntu"],
       "color": "red",
       "favorite": true,
+      "sshOptions": {
+        "ServerAliveInterval": "30"
+      },
+      "suppressWeakCryptoWarning": false,
       "createdAt": "2026-07-02T00:00:00.000Z",
       "updatedAt": "2026-07-02T00:00:00.000Z"
     }
@@ -247,4 +266,12 @@ npm pack --dry-run
 npm publish --access public
 ```
 
-The published package includes only `dist`, `scripts`, `README.md`, and `LICENSE`.
+Create and push the matching Git tag after publishing:
+
+```bash
+git tag v0.4.0
+git push origin development v0.4.0
+```
+
+The published package includes only `dist`, `scripts`, `README.md`, `CHANGELOG.md`,
+and `LICENSE`.

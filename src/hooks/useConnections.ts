@@ -6,7 +6,7 @@ interface UseConnectionsResult {
   connections: SshConnection[];
   loading: boolean;
   error?: string | undefined;
-  reload: (options?: ConnectionListOptions) => Promise<void>;
+  reload: (options?: ConnectionListOptions) => Promise<SshConnection[]>;
 }
 
 export const useConnections = (
@@ -18,14 +18,17 @@ export const useConnections = (
   const [error, setError] = useState<string | undefined>();
 
   const reload = useCallback(
-    async (nextOptions: ConnectionListOptions = options): Promise<void> => {
+    async (nextOptions: ConnectionListOptions = options): Promise<SshConnection[]> => {
       setLoading(true);
       setError(undefined);
 
       try {
-        setConnections(await service.list(nextOptions));
+        const nextConnections = await service.list(nextOptions);
+        setConnections(nextConnections);
+        return nextConnections;
       } catch (caughtError) {
         setError(caughtError instanceof Error ? caughtError.message : 'Failed to load connections');
+        return [];
       } finally {
         setLoading(false);
       }

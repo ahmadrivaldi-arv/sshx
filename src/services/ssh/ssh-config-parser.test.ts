@@ -21,9 +21,25 @@ Host Production
         username: 'root',
         port: 2222,
         identityFile: '~/.ssh/id_ed25519',
+        sshOptions: {},
         tags: ['imported'],
         group: 'Imported'
       }
     ]);
+  });
+
+  it('preserves per-host OpenSSH options', () => {
+    const result = parseSshConfig(`
+Host Staging
+  HostName staging.example.com
+  User deploy
+  ProxyJump bastion
+  ServerAliveInterval 30
+`);
+
+    expect(result[0]?.sshOptions).toEqual({
+      ProxyJump: 'bastion',
+      ServerAliveInterval: '30'
+    });
   });
 });
