@@ -32,6 +32,7 @@ See released changes in [CHANGELOG.md](CHANGELOG.md), the
 - Preview and import connections from Sshx JSON/YAML files with duplicate strategies.
 - Multi-select connections for bulk delete, favorite, group, and tag actions.
 - SSH health checks with online, unreachable, timeout, and authentication-required status.
+- Fuzzy `:` command palette for connection and vault operations.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
@@ -56,7 +57,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.7.0.tgz
+npm install -g ./ahmdrv-sshx-0.8.0.tgz
 sshx
 ```
 
@@ -102,6 +103,7 @@ g      assign a group to selected connections
 t      replace tags on selected connections
 h      check selected or multi-selected connection health
 H      check all visible connection health
+:      open the fuzzy command palette
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -236,6 +238,18 @@ sshx theme set mono --ascii
 sshx theme set default --clear-accent --expanded --unicode
 sshx theme install ~/Downloads/ocean.json
 sshx theme set ocean --clear-accent
+```
+
+Use the command palette:
+
+```text
+:add
+:edit
+:delete
+:import connections.json --strategy=rename --apply
+:export connections.yaml
+:logs
+:theme dracula
 ```
 
 Available themes are `default`, `minimal`, `mono`, `dracula`, `nord`, `catppuccin`,

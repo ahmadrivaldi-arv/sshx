@@ -17,6 +17,7 @@ import { ConfigService } from '../services/config/config-service.js';
 import { ConnectionService } from '../services/config/connection-service.js';
 import { ThemeService } from '../services/config/theme-service.js';
 import { Logger } from '../services/logging/logger.js';
+import type { ExternalPaletteCommand } from '../services/palette/command-palette.js';
 import { ExportService } from '../services/ssh/export-service.js';
 import { ImportService } from '../services/ssh/import-service.js';
 import { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
@@ -31,7 +32,8 @@ const runTui = async (
   connectionService: ConnectionService,
   healthService: ConnectionHealthService,
   session: PtySshSession,
-  theme: ResolvedTheme
+  theme: ResolvedTheme,
+  onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>
 ): Promise<void> => {
   const useAlternateScreen = Boolean(process.stdout.isTTY);
 
@@ -46,6 +48,7 @@ const runTui = async (
       <App
         connectionService={connectionService}
         healthService={healthService}
+        onPaletteCommand={onPaletteCommand}
         theme={theme}
         onConnect={(connection) => {
           selectedConnection = connection;
@@ -87,13 +90,57 @@ const main = async (): Promise<void> => {
   const exportService = new ExportService(connectionService);
   const session = new PtySshSession(logger, secretService);
   const program = new Command();
+  const onPaletteCommand = async (
+    command: ExternalPaletteCommand,
+    args: string[]
+  ): Promise<string> => {
+    if (command === 'logs') {
+      return `Logs: ${logger.getLogFile()}`;
+    }
+    if (command === 'theme') {
+      const name = args[0];
+      if (!name) throw new Error('Usage: :theme <name>');
+      const resolved = await themeService.update({ name });
+      return `Theme set to ${resolved.name}; restart the TUI to apply it`;
+    }
+    if (command === 'export') {
+      const file = args[0];
+      if (!file) throw new Error('Usage: :export <file>');
+      const format = /\.ya?ml$/i.test(file) ? 'yaml' : 'json';
+      await exportService.export(file, format);
+      return `Exported connections to ${file}`;
+    }
+
+    const file = args[0];
+    if (!file) {
+      throw new Error('Usage: :import <file> [--apply] [--strategy=skip|overwrite|rename]');
+    }
+    const strategyArgument = args.find((argument) => argument.startsWith('--strategy='));
+    const strategy = strategyArgument?.slice('--strategy='.length) ?? 'skip';
+    if (strategy !== 'skip' && strategy !== 'overwrite' && strategy !== 'rename') {
+      throw new Error('Import strategy must be skip, overwrite, or rename');
+    }
+    const preview = await importService.previewFile(file, undefined, strategy);
+    const summary = `${preview.add} add, ${preview.overwrite} overwrite, ${preview.rename} rename, ${preview.skip} skip`;
+    if (!args.includes('--apply')) {
+      return `Import preview: ${summary}; add --apply to save`;
+    }
+    const imported = await importService.applyPreview(preview);
+    return `Imported ${imported.length} connection(s): ${summary}`;
+  };
 
   program
     .name('sshx')
     .description('A modern terminal SSH manager')
     .version(packageJson.version)
     .action(async (): Promise<void> => {
-      await runTui(connectionService, healthService, session, await themeService.getResolved());
+      await runTui(
+        connectionService,
+        healthService,
+        session,
+        await themeService.getResolved(),
+        onPaletteCommand
+      );
     });
 
   registerAddCommand(program, connectionService);

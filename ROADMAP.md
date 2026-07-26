@@ -69,17 +69,17 @@ Focus: help users know whether servers are reachable before connecting.
 
 Focus: make Sshx faster for keyboard-heavy users.
 
-- Add command palette with `:`.
-- Support commands:
-  - `:add`
-  - `:edit`
-  - `:delete`
-  - `:import`
-  - `:export`
-  - `:logs`
-  - `:theme`
-- Add fuzzy command matching.
-- Add command hints in footer.
+- [x] Add command palette with `:`.
+- [x] Support commands:
+  - [x] `:add`
+  - [x] `:edit`
+  - [x] `:delete`
+  - [x] `:import`
+  - [x] `:export`
+  - [x] `:logs`
+  - [x] `:theme`
+- [x] Add fuzzy command matching.
+- [x] Add command hints in footer.
 
 ## v0.9.0 - Backup & Restore
 

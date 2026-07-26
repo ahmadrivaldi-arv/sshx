@@ -8,6 +8,11 @@ import { SearchBar } from '../components/SearchBar.js';
 import { useConnections } from '../hooks/useConnections.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
+import {
+  matchPaletteCommands,
+  parsePaletteInput,
+  type ExternalPaletteCommand
+} from '../services/palette/command-palette.js';
 import type { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
 import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
 import { useTheme } from '../themes/ThemeContext.js';
@@ -17,11 +22,12 @@ import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/c
 interface MainScreenProps {
   connectionService: ConnectionService;
   healthService: ConnectionHealthService;
+  onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>;
   onConnect: (connection: SshConnection) => void;
 }
 
 type ScreenMode =
-  'browse' | 'search' | 'add' | 'edit' | 'delete-confirm' | 'bulk-group' | 'bulk-tags';
+  'browse' | 'search' | 'add' | 'edit' | 'delete-confirm' | 'bulk-group' | 'bulk-tags' | 'palette';
 
 interface FormState {
   name: string;
@@ -164,6 +170,7 @@ const toConnectionPatch = (form: FormState): ConnectionPatch => ({
 export const MainScreen = ({
   connectionService,
   healthService,
+  onPaletteCommand,
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
@@ -183,9 +190,12 @@ export const MainScreen = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteIndex, setPaletteIndex] = useState(0);
   const options = useMemo(() => ({ search: query }), [query]);
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
+  const paletteMatches = useMemo(() => matchPaletteCommands(paletteQuery), [paletteQuery]);
   const selectedConnection = visibleConnections[selectedIndex];
   const responsiveCompact = columns < 100 || rows < 24;
   const compact = responsiveCompact || (compactOverride ?? theme.compact);
@@ -202,6 +212,8 @@ export const MainScreen = ({
     setEditingId(undefined);
     setDeleteTargets([]);
     setBulkValue('');
+    setPaletteQuery('');
+    setPaletteIndex(0);
     setSaving(false);
   };
 
@@ -351,6 +363,64 @@ export const MainScreen = ({
       return;
     }
 
+    if (mode === 'palette') {
+      if (key.downArrow) {
+        setPaletteIndex((current) => Math.min(current + 1, Math.max(paletteMatches.length - 1, 0)));
+      } else if (key.upArrow) {
+        setPaletteIndex((current) => Math.max(current - 1, 0));
+      } else if (key.backspace || key.delete) {
+        setPaletteQuery((current) => current.slice(0, -1));
+        setPaletteIndex(0);
+      } else if (key.return) {
+        const parsed = parsePaletteInput(paletteQuery);
+        const command = parsed.command ?? paletteMatches[paletteIndex]?.name;
+
+        if (!command) {
+          setMessage('No matching command');
+          return;
+        }
+
+        if (command === 'add') {
+          setMode('add');
+          setForm(emptyForm);
+          setFieldIndex(0);
+          setMessage('');
+        } else if (command === 'edit' && selectedConnection) {
+          setMode('edit');
+          setEditingId(selectedConnection.id);
+          setForm(createEditForm(selectedConnection));
+          setFieldIndex(0);
+          setMessage('');
+        } else if (command === 'delete' && selectedConnection) {
+          setDeleteTargets(
+            selectedIds.size > 0
+              ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+              : [selectedConnection]
+          );
+          setMode('delete-confirm');
+          setMessage('');
+        } else if (command === 'edit' || command === 'delete') {
+          setMessage('Select a connection first');
+        } else {
+          setSaving(true);
+          void onPaletteCommand(command, parsed.args)
+            .then(async (result) => {
+              resetMode();
+              setMessage(result);
+              await reload({});
+            })
+            .catch((caughtError: unknown) => {
+              setSaving(false);
+              setMessage(caughtError instanceof Error ? caughtError.message : 'Command failed');
+            });
+        }
+      } else if (input && !key.ctrl && !key.meta) {
+        setPaletteQuery((current) => `${current}${input}`);
+        setPaletteIndex(0);
+      }
+      return;
+    }
+
     if (mode === 'add' || mode === 'edit') {
       const field = fields[fieldIndex];
 
@@ -436,6 +506,11 @@ export const MainScreen = ({
     } else if (input === '/') {
       setMode('search');
       setQuery('');
+      setMessage('');
+    } else if (input === ':') {
+      setMode('palette');
+      setPaletteQuery('');
+      setPaletteIndex(0);
       setMessage('');
     } else if (input === 'a') {
       setMode('add');
@@ -527,7 +602,9 @@ export const MainScreen = ({
             ? 'assign group'
             : mode === 'bulk-tags'
               ? 'assign tags'
-              : mode;
+              : mode === 'palette'
+                ? 'command palette'
+                : mode;
 
   const footerText =
     mode === 'add' || mode === 'edit'
@@ -538,11 +615,13 @@ export const MainScreen = ({
         ? `y confirm  ${glyphs.separator}  n/esc cancel`
         : mode === 'bulk-group' || mode === 'bulk-tags'
           ? `${glyphs.enter} apply  ${glyphs.separator}  esc cancel`
-          : mode === 'search'
-            ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
-            : compact
-              ? `${glyphs.enter} connect  space select  h check  d delete  q quit`
-              : `${glyphs.enter} connect  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
+          : mode === 'palette'
+            ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} run  ${glyphs.separator}  esc cancel`
+            : mode === 'search'
+              ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
+              : compact
+                ? `${glyphs.enter} connect  : commands  space select  h check  q quit`
+                : `${glyphs.enter} connect  ${glyphs.separator}  : commands  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
@@ -611,6 +690,31 @@ export const MainScreen = ({
               </Box>
             );
           })}
+        </Box>
+      ) : mode === 'palette' ? (
+        <Box flexDirection="column">
+          <Text color={theme.accent} bold>
+            :{paletteQuery}
+            {glyphs.inputCursor}
+          </Text>
+          {paletteMatches.length === 0 ? (
+            <Text color={theme.muted}>No matching commands</Text>
+          ) : (
+            paletteMatches.slice(0, 7).map((command, index) => (
+              <Box key={command.name} flexDirection="column">
+                <Text
+                  color={index === paletteIndex ? theme.accent : theme.text}
+                  bold={index === paletteIndex}
+                >
+                  {index === paletteIndex ? `${glyphs.cursor} ` : '  '}
+                  {command.usage}
+                </Text>
+                {!compact && index === paletteIndex ? (
+                  <Text color={theme.muted}> {command.description}</Text>
+                ) : null}
+              </Box>
+            ))
+          )}
         </Box>
       ) : mode === 'bulk-group' || mode === 'bulk-tags' ? (
         <Box flexDirection="column">

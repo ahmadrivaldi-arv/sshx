@@ -5,6 +5,15 @@ All notable changes to Sshx are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-26
+
+### Added
+
+- A `:` command palette with fuzzy matching and keyboard navigation.
+- Native palette actions for add, edit, and delete.
+- Operational `:import`, `:export`, `:logs`, and `:theme` commands with arguments.
+- Palette usage and command hints in the TUI.
+
 ## [0.7.0] - 2026-07-26
 
 ### Added
@@ -70,6 +79,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Placed OpenSSH options before the destination so they are parsed consistently across platforms.
 - Preserved additional per-host OpenSSH directives when importing SSH config files.
 
+[0.8.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.4.0...v0.5.0
