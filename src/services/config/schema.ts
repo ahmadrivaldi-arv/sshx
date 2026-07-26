@@ -53,7 +53,9 @@ export const sshConnectionSchema = z.object({
   lastConnectedAt: z.string().datetime().optional(),
   connectionCount: z.number().int().min(0).default(0),
   lastConnectionStatus: z.enum(['success', 'failed']).optional(),
-  lastConnectionDurationMs: z.number().int().min(0).optional()
+  lastConnectionDurationMs: z.number().int().min(0).optional(),
+  healthStatus: z.enum(['online', 'unreachable', 'timeout', 'auth-required']).optional(),
+  lastCheckedAt: z.string().datetime().optional()
 });
 
 export const appConfigSchema = z.object({

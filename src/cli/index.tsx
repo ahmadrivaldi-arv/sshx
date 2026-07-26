@@ -3,6 +3,7 @@ import React from 'react';
 import { Command } from 'commander';
 import { render } from 'ink';
 import { registerAddCommand } from '../commands/add-command.js';
+import { registerCheckCommand } from '../commands/check-command.js';
 import { registerConnectCommand } from '../commands/connect-command.js';
 import { registerEditCommand } from '../commands/edit-command.js';
 import { registerExportCommand } from '../commands/export-command.js';
@@ -18,6 +19,7 @@ import { ThemeService } from '../services/config/theme-service.js';
 import { Logger } from '../services/logging/logger.js';
 import { ExportService } from '../services/ssh/export-service.js';
 import { ImportService } from '../services/ssh/import-service.js';
+import { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
 import { PtySshSession } from '../services/ssh/pty-ssh-session.js';
 import { SecretService } from '../services/ssh/secret-service.js';
 import type { SshConnection } from '../types/connection.js';
@@ -27,6 +29,7 @@ import packageJson from '../../package.json' with { type: 'json' };
 
 const runTui = async (
   connectionService: ConnectionService,
+  healthService: ConnectionHealthService,
   session: PtySshSession,
   theme: ResolvedTheme
 ): Promise<void> => {
@@ -42,6 +45,7 @@ const runTui = async (
     const instance = render(
       <App
         connectionService={connectionService}
+        healthService={healthService}
         theme={theme}
         onConnect={(connection) => {
           selectedConnection = connection;
@@ -79,6 +83,7 @@ const main = async (): Promise<void> => {
   const themeService = new ThemeService(configService);
   const logger = new Logger();
   const importService = new ImportService(connectionService);
+  const healthService = new ConnectionHealthService(connectionService);
   const exportService = new ExportService(connectionService);
   const session = new PtySshSession(logger, secretService);
   const program = new Command();
@@ -88,7 +93,7 @@ const main = async (): Promise<void> => {
     .description('A modern terminal SSH manager')
     .version(packageJson.version)
     .action(async (): Promise<void> => {
-      await runTui(connectionService, session, await themeService.getResolved());
+      await runTui(connectionService, healthService, session, await themeService.getResolved());
     });
 
   registerAddCommand(program, connectionService);
@@ -96,6 +101,7 @@ const main = async (): Promise<void> => {
   registerListCommand(program, connectionService);
   registerMutationCommands(program, connectionService);
   registerImportCommand(program, importService);
+  registerCheckCommand(program, connectionService, healthService);
   registerExportCommand(program, exportService);
   registerConnectCommand(program, connectionService, session);
   registerLogsCommand(program, logger);

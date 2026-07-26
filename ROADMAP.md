@@ -55,15 +55,15 @@ Focus: make Sshx better for managing many connections.
 
 Focus: help users know whether servers are reachable before connecting.
 
-- Add SSH port health check.
-- Add status indicators:
-  - online
-  - unreachable
-  - timeout
-  - auth required
-- Add shortcut to check selected connection.
-- Add bulk health check for visible connections.
-- Store last checked timestamp.
+- [x] Add SSH port health check.
+- [x] Add status indicators:
+  - [x] online
+  - [x] unreachable
+  - [x] timeout
+  - [x] auth required
+- [x] Add shortcut to check selected connection.
+- [x] Add bulk health check for visible connections.
+- [x] Store last checked timestamp.
 
 ## v0.8.0 - Command Palette
 

@@ -8,6 +8,7 @@ import { SearchBar } from '../components/SearchBar.js';
 import { useConnections } from '../hooks/useConnections.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
+import type { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
 import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
 import { useTheme } from '../themes/ThemeContext.js';
 import { getThemeGlyphs } from '../themes/themes.js';
@@ -15,6 +16,7 @@ import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/c
 
 interface MainScreenProps {
   connectionService: ConnectionService;
+  healthService: ConnectionHealthService;
   onConnect: (connection: SshConnection) => void;
 }
 
@@ -161,6 +163,7 @@ const toConnectionPatch = (form: FormState): ConnectionPatch => ({
 
 export const MainScreen = ({
   connectionService,
+  healthService,
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
@@ -179,6 +182,7 @@ export const MainScreen = ({
   const [bulkValue, setBulkValue] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
   const options = useMemo(() => ({ search: query }), [query]);
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
@@ -206,6 +210,23 @@ export const MainScreen = ({
       onConnect(selectedConnection);
       app.exit();
     }
+  };
+
+  const checkConnections = (targets: SshConnection[]): void => {
+    if (checking || targets.length === 0) return;
+    setChecking(true);
+    setMessage(`Checking ${targets.length} connection${targets.length === 1 ? '' : 's'}...`);
+    void healthService
+      .checkMany(targets)
+      .then(async (results) => {
+        const online = results.filter(({ status }) => status === 'online').length;
+        setMessage(`Health check complete: ${online}/${results.length} online`);
+        await reload(options);
+      })
+      .catch((caughtError: unknown) => {
+        setMessage(caughtError instanceof Error ? caughtError.message : 'Health check failed');
+      })
+      .finally(() => setChecking(false));
   };
 
   const moveField = (delta: number): void => {
@@ -465,6 +486,14 @@ export const MainScreen = ({
       setMode(input === 'g' ? 'bulk-group' : 'bulk-tags');
       setBulkValue('');
       setMessage('');
+    } else if (input === 'h' && selectedConnection) {
+      const targets =
+        selectedIds.size > 0
+          ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+          : [selectedConnection];
+      checkConnections(targets);
+    } else if (input === 'H') {
+      checkConnections(visibleConnections);
     } else if (input === 'c') {
       if (responsiveCompact) {
         setMessage('Compact layout is required at this terminal size');
@@ -512,8 +541,8 @@ export const MainScreen = ({
           : mode === 'search'
             ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
             : compact
-              ? `${glyphs.enter} connect  space select  d delete  q quit`
-              : `${glyphs.enter} connect  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  f fav  ${glyphs.separator}  g group  ${glyphs.separator}  t tags  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
+              ? `${glyphs.enter} connect  space select  h check  d delete  q quit`
+              : `${glyphs.enter} connect  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 

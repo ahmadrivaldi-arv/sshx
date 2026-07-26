@@ -34,6 +34,14 @@ export const groupConnections = (connections: SshConnection[]): GroupedConnectio
 export const getConnectionTreeItems = (connections: SshConnection[]): SshConnection[] =>
   groupConnections(connections).flatMap((group) => group.connections);
 
+const healthIndicator = (connection: SshConnection, ascii: boolean): string => {
+  if (connection.healthStatus === 'online') return ascii ? 'o' : '●';
+  if (connection.healthStatus === 'unreachable') return ascii ? 'x' : '×';
+  if (connection.healthStatus === 'timeout') return ascii ? '?' : '◷';
+  if (connection.healthStatus === 'auth-required') return '!';
+  return '·';
+};
+
 export const ConnectionTree = ({
   connections,
   selectedIndex,
@@ -137,6 +145,10 @@ export const ConnectionTree = ({
                   </Text>
                 </Box>
                 {connection.favorite && <Text color={theme.favorite}> {glyphs.favorite}</Text>}
+                <Text color={connection.healthStatus === 'online' ? theme.accent : theme.muted}>
+                  {' '}
+                  {healthIndicator(connection, theme.ascii)}
+                </Text>
               </Box>
             );
           })}

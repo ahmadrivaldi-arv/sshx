@@ -47,6 +47,11 @@ export const ConnectionDetail = ({
             ? ''
             : ` in ${connection.lastConnectionDurationMs}ms`
         }`;
+  const healthSummary = connection.healthStatus
+    ? `${connection.healthStatus}${
+        connection.lastCheckedAt ? ` (${new Date(connection.lastCheckedAt).toLocaleString()})` : ''
+      }`
+    : 'Not checked';
 
   if (compact) {
     return (
@@ -196,6 +201,19 @@ export const ConnectionDetail = ({
           </Box>
           <Box>
             <Text color={theme.text}>{connectionSummary}</Text>
+          </Box>
+        </Box>
+
+        <Box flexDirection="row" marginBottom={0.5}>
+          <Box width={14}>
+            <Text color={theme.muted} dimColor>
+              Health
+            </Text>
+          </Box>
+          <Box>
+            <Text color={connection.healthStatus === 'online' ? theme.accent : theme.text}>
+              {healthSummary}
+            </Text>
           </Box>
         </Box>
       </Box>

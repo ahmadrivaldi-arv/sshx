@@ -31,6 +31,7 @@ See released changes in [CHANGELOG.md](CHANGELOG.md), the
 - Import hosts from `~/.ssh/config`.
 - Preview and import connections from Sshx JSON/YAML files with duplicate strategies.
 - Multi-select connections for bulk delete, favorite, group, and tag actions.
+- SSH health checks with online, unreachable, timeout, and authentication-required status.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
@@ -55,7 +56,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.6.0.tgz
+npm install -g ./ahmdrv-sshx-0.7.0.tgz
 sshx
 ```
 
@@ -99,6 +100,8 @@ f      toggle favorite
 Space  select connection for bulk actions
 g      assign a group to selected connections
 t      replace tags on selected connections
+h      check selected or multi-selected connection health
+H      check all visible connection health
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -116,6 +119,7 @@ sshx rename <id> <name>         Rename an SSH connection by id
 sshx favorite <id>              Toggle favorite status by id
 sshx import [options]           Import connections from ~/.ssh/config or Sshx JSON/YAML export
 sshx export [options] <file>    Export connections to JSON or YAML
+sshx check [options] [target]   Check SSH reachability for one or all connections
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
 sshx logs [options]             Show Sshx log file
@@ -179,6 +183,13 @@ Connect:
 
 ```bash
 sshx connect "Production"
+```
+
+Check SSH health:
+
+```bash
+sshx check "Production"
+sshx check --all --timeout 3
 ```
 
 Import from OpenSSH config:

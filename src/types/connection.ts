@@ -3,6 +3,7 @@ export type ConnectionColor =
 
 export type SshOptions = Record<string, string>;
 export type ConnectionOutcome = 'success' | 'failed';
+export type ConnectionHealthStatus = 'online' | 'unreachable' | 'timeout' | 'auth-required';
 
 export interface SshConnection {
   id: string;
@@ -24,6 +25,8 @@ export interface SshConnection {
   connectionCount: number;
   lastConnectionStatus?: ConnectionOutcome | undefined;
   lastConnectionDurationMs?: number | undefined;
+  healthStatus?: ConnectionHealthStatus | undefined;
+  lastCheckedAt?: string | undefined;
 }
 
 export interface ConnectionInput {

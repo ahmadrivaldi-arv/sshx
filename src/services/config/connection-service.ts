@@ -1,5 +1,6 @@
 import type {
   BulkTagMode,
+  ConnectionHealthStatus,
   ConnectionInput,
   ConnectionListOptions,
   ConnectionOutcome,
@@ -260,6 +261,25 @@ export class ConnectionService {
   public async findDuplicate(input: ConnectionInput): Promise<SshConnection | undefined> {
     const config = await this.configService.load();
     return this.findDuplicateIn(config.connections, input);
+  }
+
+  public async recordHealth(
+    id: string,
+    healthStatus: ConnectionHealthStatus,
+    lastCheckedAt = new Date().toISOString()
+  ): Promise<SshConnection> {
+    const config = await this.configService.load();
+    const index = this.findIndex(config.connections, id);
+    const current = this.getConnectionAt(config.connections, index);
+    const updated = {
+      ...current,
+      healthStatus,
+      lastCheckedAt,
+      updatedAt: lastCheckedAt
+    };
+    config.connections[index] = updated;
+    await this.configService.save(config);
+    return updated;
   }
 
   public async bulkDelete(ids: Iterable<string>): Promise<number> {
