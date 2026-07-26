@@ -42,6 +42,10 @@ describe('ImportService', () => {
             username: 'root',
             tags: ['json'],
             favorite: true,
+            sshOptions: {
+              ServerAliveInterval: '30'
+            },
+            suppressWeakCryptoWarning: true,
             createdAt: '2026-07-02T00:00:00.000Z',
             updatedAt: '2026-07-02T00:00:00.000Z'
           }
@@ -55,5 +59,7 @@ describe('ImportService', () => {
     expect(imported).toHaveLength(1);
     expect(imported[0]?.name).toBe('Imported JSON');
     expect(imported[0]?.favorite).toBe(true);
+    expect(imported[0]?.sshOptions).toEqual({ ServerAliveInterval: '30' });
+    expect(imported[0]?.suppressWeakCryptoWarning).toBe(true);
   });
 });

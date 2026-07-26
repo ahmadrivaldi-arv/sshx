@@ -1,6 +1,8 @@
 export type ConnectionColor =
   'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
 
+export type SshOptions = Record<string, string>;
+
 export interface SshConnection {
   id: string;
   name: string;
@@ -13,6 +15,8 @@ export interface SshConnection {
   tags: string[];
   color?: ConnectionColor | undefined;
   favorite: boolean;
+  sshOptions: SshOptions;
+  suppressWeakCryptoWarning: boolean;
   createdAt: string;
   updatedAt: string;
   lastConnectedAt?: string | undefined;
@@ -29,9 +33,18 @@ export interface ConnectionInput {
   tags?: string[];
   color?: ConnectionColor | undefined;
   favorite?: boolean | undefined;
+  sshOptions?: SshOptions | undefined;
+  suppressWeakCryptoWarning?: boolean | undefined;
 }
 
-export type ConnectionPatch = Partial<ConnectionInput>;
+export interface ConnectionPatch extends Partial<
+  Omit<ConnectionInput, 'color' | 'group' | 'identityFile' | 'password'>
+> {
+  color?: ConnectionColor | null | undefined;
+  group?: string | null | undefined;
+  identityFile?: string | null | undefined;
+  password?: string | null | undefined;
+}
 
 export type ConnectionSortKey = 'name' | 'group' | 'recent' | 'favorite';
 

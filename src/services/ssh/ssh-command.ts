@@ -27,11 +27,25 @@ const resolveSshCommand = (): string => {
 };
 
 export const buildSshCommand = (connection: SshConnection): SshCommand => {
-  const args = [`${connection.username}@${connection.host}`, '-p', String(connection.port)];
+  const args = ['-p', String(connection.port)];
 
   if (connection.identityFile) {
     args.push('-i', expandHome(connection.identityFile));
   }
+
+  if (connection.suppressWeakCryptoWarning) {
+    args.push('-o', 'WarnWeakCrypto=no');
+  }
+
+  for (const [name, value] of Object.entries(connection.sshOptions)) {
+    if (connection.suppressWeakCryptoWarning && name.toLowerCase() === 'warnweakcrypto') {
+      continue;
+    }
+
+    args.push('-o', `${name}=${value}`);
+  }
+
+  args.push(`${connection.username}@${connection.host}`);
 
   return {
     command: resolveSshCommand(),

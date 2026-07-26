@@ -7,6 +7,8 @@ const ACCENT_COLOR = '#f97316'; // Modern Orange Accent
 interface ConnectionTreeProps {
   connections: SshConnection[];
   selectedIndex: number;
+  maxVisible?: number;
+  compact?: boolean;
 }
 
 interface GroupedConnections {
@@ -33,16 +35,40 @@ export const getConnectionTreeItems = (connections: SshConnection[]): SshConnect
 
 export const ConnectionTree = ({
   connections,
-  selectedIndex
+  selectedIndex,
+  maxVisible = connections.length,
+  compact = false
 }: ConnectionTreeProps): React.ReactElement => {
-  let cursor = 0;
-  const groups = groupConnections(connections);
+  const treeItems = getConnectionTreeItems(connections);
+  const visibleCount = Math.max(maxVisible, 1);
+  const maxStart = Math.max(treeItems.length - visibleCount, 0);
+  const start = Math.min(Math.max(selectedIndex - Math.floor(visibleCount / 2), 0), maxStart);
+  const end = Math.min(start + visibleCount, treeItems.length);
+  const visibleIds = new Set(treeItems.slice(start, end).map((connection) => connection.id));
+  let cursor = start;
+  const groups = groupConnections(connections)
+    .map((group) => ({
+      ...group,
+      connections: group.connections.filter((connection) => visibleIds.has(connection.id))
+    }))
+    .filter((group) => group.connections.length > 0);
 
   if (connections.length === 0) {
     return (
-      <Box paddingY={1}>
+      <Box paddingY={compact ? 0 : 1} flexDirection="column">
         <Text color="gray" dimColor>
-          No connections found. Press 'a' to add one.
+          No connections yet.
+        </Text>
+        <Text color={ACCENT_COLOR}>Press a to add your first host.</Text>
+      </Box>
+    );
+  }
+
+  if (maxVisible < 1) {
+    return (
+      <Box>
+        <Text color="gray" dimColor>
+          Terminal is too short to show connections.
         </Text>
       </Box>
     );
@@ -50,13 +76,18 @@ export const ConnectionTree = ({
 
   return (
     <Box flexDirection="column">
+      {start > 0 ? (
+        <Text color="gray" dimColor>
+          ↑ {start} more
+        </Text>
+      ) : null}
       {groups.map((group, groupIndex) => (
         <Box
           key={group.group}
           flexDirection="column"
-          marginTop={groupIndex === 0 ? 0 : 1}
+          marginTop={compact || groupIndex === 0 ? 0 : 1}
         >
-          <Box marginBottom={1}>
+          <Box marginBottom={compact ? 0 : 1}>
             {group.group === 'Favorites' ? (
               <Text color="yellow" bold dimColor>
                 {group.group.toUpperCase()}
@@ -98,6 +129,11 @@ export const ConnectionTree = ({
           })}
         </Box>
       ))}
+      {end < treeItems.length ? (
+        <Text color="gray" dimColor>
+          ↓ {treeItems.length - end} more
+        </Text>
+      ) : null}
     </Box>
   );
 };

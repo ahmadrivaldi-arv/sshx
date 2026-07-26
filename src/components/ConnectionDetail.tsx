@@ -1,14 +1,19 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { SshConnection } from '../types/connection.js';
+import { formatSshOptions } from '../services/ssh/ssh-options.js';
 
 const ACCENT_COLOR = '#f97316'; // Modern Orange Accent
 
 interface ConnectionDetailProps {
   connection?: SshConnection | undefined;
+  compact?: boolean;
 }
 
-export const ConnectionDetail = ({ connection }: ConnectionDetailProps): React.ReactElement => {
+export const ConnectionDetail = ({
+  connection,
+  compact = false
+}: ConnectionDetailProps): React.ReactElement => {
   if (!connection) {
     return (
       <Box
@@ -28,6 +33,28 @@ export const ConnectionDetail = ({ connection }: ConnectionDetailProps): React.R
   const formattedDate = connection.lastConnectedAt
     ? new Date(connection.lastConnectedAt).toLocaleString()
     : 'Never';
+  const sshOptions = formatSshOptions(connection.sshOptions);
+
+  if (compact) {
+    return (
+      <Box flexDirection="column">
+        <Text color={ACCENT_COLOR} bold>
+          {connection.name}
+          {connection.favorite ? ' ★' : ''}
+        </Text>
+        <Text>
+          {connection.username}@{connection.host}:{connection.port}
+        </Text>
+        {connection.group || connection.tags.length > 0 ? (
+          <Text color="gray" dimColor>
+            {[connection.group, ...connection.tags.map((tag) => `#${tag}`)]
+              .filter(Boolean)
+              .join(' ')}
+          </Text>
+        ) : null}
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" paddingX={2} flexGrow={1}>
@@ -49,6 +76,28 @@ export const ConnectionDetail = ({ connection }: ConnectionDetailProps): React.R
           </Box>
           <Box>
             <Text>{connection.host}</Text>
+          </Box>
+        </Box>
+
+        <Box flexDirection="row" marginBottom={0.5}>
+          <Box width={14}>
+            <Text color="gray" dimColor>
+              SSH Options
+            </Text>
+          </Box>
+          <Box>
+            <Text>{sshOptions || '—'}</Text>
+          </Box>
+        </Box>
+
+        <Box flexDirection="row" marginBottom={0.5}>
+          <Box width={14}>
+            <Text color="gray" dimColor>
+              Weak Warning
+            </Text>
+          </Box>
+          <Box>
+            <Text>{connection.suppressWeakCryptoWarning ? 'Suppressed' : 'Shown'}</Text>
           </Box>
         </Box>
 

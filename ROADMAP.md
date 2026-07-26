@@ -6,13 +6,13 @@ This roadmap tracks the next planned work for Sshx. Scope may change as the proj
 
 Focus: make the current TUI more stable, readable, and comfortable across terminal sizes.
 
-- Fix terminal redraw issues on small terminal sizes.
-- Improve add, edit, and delete flows.
-- Add compact layout mode.
-- Improve delete confirmation UI.
-- Improve empty, error, and loading states.
-- Add configurable SSH options per connection.
-- Add option to suppress OpenSSH weak crypto warning:
+- [x] Fix terminal redraw issues on small terminal sizes.
+- [x] Improve add, edit, and delete flows.
+- [x] Add compact layout mode.
+- [x] Improve delete confirmation UI.
+- [x] Improve empty, error, and loading states.
+- [x] Add configurable SSH options per connection.
+- [x] Add option to suppress OpenSSH weak crypto warning:
   - `WarnWeakCrypto=no`
 
 ## v0.5.0 - Themes

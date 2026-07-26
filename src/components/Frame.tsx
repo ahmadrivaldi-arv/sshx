@@ -6,10 +6,25 @@ interface FrameProps {
   children: React.ReactNode;
   footer: React.ReactNode;
   subtitle?: React.ReactNode;
+  compact?: boolean;
+  height?: number;
 }
 
-export const Frame = ({ title, children, footer, subtitle }: FrameProps): React.ReactElement => (
-  <Box flexDirection="column" paddingX={2} paddingY={1}>
+export const Frame = ({
+  title,
+  children,
+  footer,
+  subtitle,
+  compact = false,
+  height
+}: FrameProps): React.ReactElement => (
+  <Box
+    flexDirection="column"
+    paddingX={compact ? 1 : 2}
+    paddingY={compact ? 0 : 1}
+    height={height}
+    overflow="hidden"
+  >
     {/* Header */}
     <Box
       justifyContent="space-between"
@@ -18,15 +33,16 @@ export const Frame = ({ title, children, footer, subtitle }: FrameProps): React.
       borderLeft={false}
       borderRight={false}
       borderColor="gray"
-      paddingBottom={1}
-      marginBottom={1}
+      paddingBottom={compact ? 0 : 1}
+      marginBottom={compact ? 0 : 1}
+      flexShrink={0}
     >
       <Box>{title}</Box>
       {subtitle ? <Box>{subtitle}</Box> : null}
     </Box>
 
     {/* Content */}
-    <Box flexDirection="column" minHeight={12} marginBottom={1}>
+    <Box flexDirection="column" flexGrow={1} marginBottom={compact ? 0 : 1} overflow="hidden">
       {children}
     </Box>
 
@@ -39,6 +55,8 @@ export const Frame = ({ title, children, footer, subtitle }: FrameProps): React.
       borderColor="gray"
       paddingTop={1}
       width="100%"
+      flexShrink={0}
+      overflow="hidden"
     >
       {footer}
     </Box>

@@ -52,4 +52,65 @@ describe('ConnectionService', () => {
 
     expect(results.map((connection) => connection.name)).toEqual(['API', 'Database']);
   });
+
+  it('stores SSH options and can clear optional fields while editing', async () => {
+    const service = await createService();
+    const connection = await service.add({
+      name: 'Legacy',
+      host: 'legacy.example.com',
+      username: 'root',
+      identityFile: '~/.ssh/legacy',
+      group: 'Old',
+      sshOptions: { HostKeyAlgorithms: '+ssh-rsa' },
+      suppressWeakCryptoWarning: true
+    });
+
+    const updated = await service.update(connection.id, {
+      identityFile: null,
+      group: null,
+      sshOptions: {},
+      suppressWeakCryptoWarning: false
+    });
+
+    expect(updated.identityFile).toBeUndefined();
+    expect(updated.group).toBeUndefined();
+    expect(updated.sshOptions).toEqual({});
+    expect(updated.suppressWeakCryptoWarning).toBe(false);
+  });
+
+  it('uses unique names for repeated duplicates', async () => {
+    const service = await createService();
+    const connection = await service.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      username: 'deploy'
+    });
+
+    const first = await service.duplicate(connection.id);
+    const second = await service.duplicate(connection.id);
+
+    expect(first.name).toBe('Production Copy');
+    expect(second.name).toBe('Production Copy 2');
+  });
+
+  it('rejects case-insensitive duplicate names when adding or editing', async () => {
+    const service = await createService();
+    const production = await service.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      username: 'deploy'
+    });
+    const staging = await service.add({
+      name: 'Staging',
+      host: 'staging.example.com',
+      username: 'deploy'
+    });
+
+    await expect(
+      service.add({ name: 'production', host: 'other.example.com', username: 'root' })
+    ).rejects.toThrow('already exists');
+    await expect(service.update(staging.id, { name: production.name })).rejects.toThrow(
+      'already exists'
+    );
+  });
 });

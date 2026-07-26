@@ -6,6 +6,7 @@ interface ParsedHost {
   user?: string;
   port?: number;
   identityFile?: string;
+  sshOptions: Record<string, string>;
 }
 
 const ignoredHostPatterns = new Set(['*']);
@@ -33,7 +34,7 @@ export const parseSshConfig = (content: string): ConnectionInput[] => {
       const alias = value.split(/\s+/)[0];
 
       if (alias && !ignoredHostPatterns.has(alias) && !alias.includes('*')) {
-        current = { alias };
+        current = { alias, sshOptions: {} };
         hosts.push(current);
       } else {
         current = undefined;
@@ -58,6 +59,8 @@ export const parseSshConfig = (content: string): ConnectionInput[] => {
       }
     } else if (keyword === 'identityfile') {
       current.identityFile = value;
+    } else {
+      current.sshOptions[keywordRaw as string] = value;
     }
   }
 
@@ -69,6 +72,7 @@ export const parseSshConfig = (content: string): ConnectionInput[] => {
       username: host.user as string,
       port: host.port ?? 22,
       ...(host.identityFile ? { identityFile: host.identityFile } : {}),
+      sshOptions: host.sshOptions,
       tags: ['imported'],
       group: 'Imported'
     }));
