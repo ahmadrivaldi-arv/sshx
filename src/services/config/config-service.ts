@@ -3,9 +3,11 @@ import type { AppConfig, ConfigPaths } from '../../types/config.js';
 import { AppError } from '../../utils/app-error.js';
 import { createDefaultConfigPaths } from '../../utils/paths.js';
 import { JsonFileStorage } from '../storage/json-file-storage.js';
+import { currentConfigVersion, migrateConfigData } from './migrations.js';
 import { appConfigSchema } from './schema.js';
 
 const defaultConfig: AppConfig = {
+  configVersion: currentConfigVersion,
   connections: [],
   recentConnectionIds: [],
   theme: {
@@ -31,12 +33,19 @@ export class ConfigService {
   public async load(): Promise<AppConfig> {
     try {
       const data = await this.storage.read();
-      return appConfigSchema.parse(data);
+      const migration = migrateConfigData(data);
+      const parsed = appConfigSchema.parse(migration.data);
+      if (migration.migrated) {
+        await this.storage.write(parsed);
+      }
+      return parsed;
     } catch (error) {
       if (error instanceof ZodError) {
         throw new AppError(
           'CONFIG_INVALID',
-          error.issues.map((issue) => issue.message).join(', '),
+          `Invalid configuration: ${error.issues
+            .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+            .join('; ')}`,
           error
         );
       }
@@ -46,7 +55,20 @@ export class ConfigService {
   }
 
   public async save(config: AppConfig): Promise<void> {
-    const parsed = appConfigSchema.parse(config);
-    await this.storage.write(parsed);
+    try {
+      const parsed = appConfigSchema.parse(config);
+      await this.storage.write(parsed);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          'CONFIG_INVALID',
+          `Invalid configuration: ${error.issues
+            .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+            .join('; ')}`,
+          error
+        );
+      }
+      throw error;
+    }
   }
 }

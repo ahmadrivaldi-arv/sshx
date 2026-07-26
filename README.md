@@ -9,8 +9,9 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 [![typescript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
 [![package](https://img.shields.io/badge/package-%40ahmdrv%2Fsshx-0f172a)](https://github.com/ahmadrivaldi-arv/sshx)
 
-See released changes in [CHANGELOG.md](CHANGELOG.md), the
-[custom theme guide](THEMES.md), and planned work in [ROADMAP.md](ROADMAP.md).
+See released changes in [CHANGELOG.md](CHANGELOG.md), the complete
+[command reference](COMMANDS.md), the [custom theme guide](THEMES.md), and
+planned work in [ROADMAP.md](ROADMAP.md).
 
 ## Screenshot
 
@@ -34,6 +35,7 @@ See released changes in [CHANGELOG.md](CHANGELOG.md), the
 - SSH health checks with online, unreachable, timeout, and authentication-required status.
 - Fuzzy `:` command palette for connection and vault operations.
 - Versioned full-configuration backup and restore without secret references.
+- Versioned configuration migration and cross-platform release verification.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
@@ -58,7 +60,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.9.0.tgz
+npm install -g ./ahmdrv-sshx-1.0.0.tgz
 sshx
 ```
 
@@ -111,6 +113,9 @@ q      quit
 ```
 
 ## Commands
+
+The main commands are listed below. See [COMMANDS.md](COMMANDS.md) for every
+argument, option, conflict mode, and palette command.
 
 ```text
 sshx add [options] <name>       Add a new SSH connection
@@ -286,6 +291,7 @@ Example:
 
 ```json
 {
+  "configVersion": 1,
   "connections": [
     {
       "id": "uuid",
@@ -339,22 +345,23 @@ sudo apt install libsecret-tools
 bun install
 bun run dev
 bun run check
+bun run verify:package
 ```
 
 ## Release
 
 ```bash
 bun run check
-npm pack --dry-run
-npm publish --access public
+bun run verify:package
 ```
 
-Create and push the matching Git tag after publishing:
+Pushing a matching version tag runs the release workflow, repeats the checks,
+verifies the package contents, and publishes to npm:
 
 ```bash
-git tag v0.5.0
-git push origin development v0.5.0
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin development v1.0.0
 ```
 
-The published package includes only `dist`, `scripts`, `README.md`, `CHANGELOG.md`,
-`THEMES.md`, and `LICENSE`.
+The published package includes only `dist`, `scripts`, `README.md`, `COMMANDS.md`,
+`CHANGELOG.md`, `ROADMAP.md`, `THEMES.md`, and `LICENSE`.

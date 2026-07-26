@@ -59,6 +59,7 @@ export const sshConnectionSchema = z.object({
 });
 
 export const appConfigSchema = z.object({
+  configVersion: z.literal(1),
   connections: z.array(sshConnectionSchema).default([]),
   recentConnectionIds: z.array(z.string().uuid()).default([]),
   theme: themeConfigSchema.default({

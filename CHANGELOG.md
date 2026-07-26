@@ -5,6 +5,23 @@ All notable changes to Sshx are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-07-26
+
+### Added
+
+- Stable `configVersion: 1` schema and automatic migration for pre-v1 configuration.
+- Clear rejection of configuration created by unsupported future versions.
+- Complete command reference in `COMMANDS.md`.
+- Actionable CLI error hints and field-specific configuration validation messages.
+- Deterministic Linux, macOS, and Windows path handling with cross-platform tests.
+- Multi-platform CI and tag-driven npm release workflows.
+- Package verification that checks version, executable, documentation, and test-file exclusion.
+
+### Changed
+
+- Legacy config migration is persisted on first v1 load.
+- Pre-v1 backup files remain restorable through the config migration layer.
+
 ## [0.9.0] - 2026-07-26
 
 ### Added
@@ -92,6 +109,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Placed OpenSSH options before the destination so they are parsed consistently across platforms.
 - Preserved additional per-host OpenSSH directives when importing SSH config files.
 
+[1.0.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.6.0...v0.7.0

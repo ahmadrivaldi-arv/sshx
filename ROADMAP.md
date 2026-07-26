@@ -95,13 +95,13 @@ Focus: safer migration and recovery.
 
 Focus: production-ready baseline.
 
-- Stable config schema.
-- Migration support for config versions.
-- Complete command docs.
-- Better error messages.
-- Cross-platform test coverage.
-- Release workflow.
-- Package verification before publish.
+- [x] Stable config schema.
+- [x] Migration support for config versions.
+- [x] Complete command docs.
+- [x] Better error messages.
+- [x] Cross-platform test coverage.
+- [x] Release workflow.
+- [x] Package verification before publish.
 
 ## Post-v1.0
 

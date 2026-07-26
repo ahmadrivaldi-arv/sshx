@@ -7,6 +7,7 @@ import { AppError } from '../../utils/app-error.js';
 import { createId } from '../../utils/id.js';
 import { expandHome } from '../../utils/paths.js';
 import { ConfigService } from '../config/config-service.js';
+import { migrateConfigData } from '../config/migrations.js';
 import { appConfigSchema } from '../config/schema.js';
 
 export type BackupFormat = 'json' | 'yaml';
@@ -66,7 +67,14 @@ export class BackupService {
       const resolvedFormat = format ?? this.inferFormat(filePath);
       const content = await fs.readFile(expandHome(filePath), 'utf8');
       const raw = resolvedFormat === 'json' ? JSON.parse(content) : YAML.parse(content);
-      const parsed = backupEnvelopeSchema.parse(raw);
+      const migratedRaw =
+        raw && typeof raw === 'object' && !Array.isArray(raw) && 'config' in raw
+          ? {
+              ...raw,
+              config: migrateConfigData((raw as { config: unknown }).config).data
+            }
+          : raw;
+      const parsed = backupEnvelopeSchema.parse(migratedRaw);
       return {
         ...parsed,
         config: {
@@ -155,6 +163,7 @@ export class BackupService {
       .map((id) => idMap.get(id))
       .filter((id): id is string => Boolean(id));
     await this.configService.save({
+      configVersion: current.configVersion,
       connections,
       recentConnectionIds: [
         ...new Set([...restoredRecentIds, ...current.recentConnectionIds])
