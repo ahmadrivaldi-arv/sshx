@@ -11,6 +11,8 @@ export type AppErrorCode =
   | 'CONNECTION_DUPLICATE'
   | 'IMPORT_FAILED'
   | 'EXPORT_FAILED'
+  | 'BACKUP_FAILED'
+  | 'BACKUP_INVALID'
   | 'SECRET_FAILED'
   | 'SSH_FAILED'
   | 'UNKNOWN';

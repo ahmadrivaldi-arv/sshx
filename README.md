@@ -33,6 +33,7 @@ See released changes in [CHANGELOG.md](CHANGELOG.md), the
 - Multi-select connections for bulk delete, favorite, group, and tag actions.
 - SSH health checks with online, unreachable, timeout, and authentication-required status.
 - Fuzzy `:` command palette for connection and vault operations.
+- Versioned full-configuration backup and restore without secret references.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
@@ -57,7 +58,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.8.0.tgz
+npm install -g ./ahmdrv-sshx-0.9.0.tgz
 sshx
 ```
 
@@ -121,6 +122,8 @@ sshx rename <id> <name>         Rename an SSH connection by id
 sshx favorite <id>              Toggle favorite status by id
 sshx import [options]           Import connections from ~/.ssh/config or Sshx JSON/YAML export
 sshx export [options] <file>    Export connections to JSON or YAML
+sshx backup [options] <file>    Back up the full configuration without secrets
+sshx restore [options] <file>   Validate and restore an Sshx backup
 sshx check [options] [target]   Check SSH reachability for one or all connections
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
@@ -218,6 +221,20 @@ Export:
 sshx export connections.json --format json
 sshx export connections.yaml --format yaml
 ```
+
+Back up and restore:
+
+```bash
+sshx backup sshx-backup.json
+sshx restore sshx-backup.json --validate-only
+sshx restore sshx-backup.json --strategy skip
+sshx restore sshx-backup.json --strategy overwrite
+sshx restore sshx-backup.json --strategy rename
+```
+
+Use `--strategy replace` only when the backup should replace the entire current
+vault. Backups include connections, history, and theme preferences, but never
+passwords or password secret references.
 
 View logs:
 

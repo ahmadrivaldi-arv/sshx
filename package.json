@@ -1,6 +1,6 @@
 {
   "name": "@ahmdrv/sshx",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A lightweight terminal SSH manager inspired by Termius, LazyGit, and modern AI CLIs.",
   "type": "module",
   "packageManager": "bun@1.3.1",

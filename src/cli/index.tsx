@@ -3,6 +3,7 @@ import React from 'react';
 import { Command } from 'commander';
 import { render } from 'ink';
 import { registerAddCommand } from '../commands/add-command.js';
+import { registerBackupCommands } from '../commands/backup-command.js';
 import { registerCheckCommand } from '../commands/check-command.js';
 import { registerConnectCommand } from '../commands/connect-command.js';
 import { registerEditCommand } from '../commands/edit-command.js';
@@ -13,6 +14,7 @@ import { registerLogsCommand } from '../commands/logs-command.js';
 import { registerMutationCommands } from '../commands/mutation-commands.js';
 import { registerThemeCommand } from '../commands/theme-command.js';
 import { App } from '../layouts/App.js';
+import { BackupService } from '../services/backup/backup-service.js';
 import { ConfigService } from '../services/config/config-service.js';
 import { ConnectionService } from '../services/config/connection-service.js';
 import { ThemeService } from '../services/config/theme-service.js';
@@ -86,6 +88,7 @@ const main = async (): Promise<void> => {
   const themeService = new ThemeService(configService);
   const logger = new Logger();
   const importService = new ImportService(connectionService);
+  const backupService = new BackupService(configService);
   const healthService = new ConnectionHealthService(connectionService);
   const exportService = new ExportService(connectionService);
   const session = new PtySshSession(logger, secretService);
@@ -144,6 +147,7 @@ const main = async (): Promise<void> => {
     });
 
   registerAddCommand(program, connectionService);
+  registerBackupCommands(program, backupService);
   registerEditCommand(program, connectionService);
   registerListCommand(program, connectionService);
   registerMutationCommands(program, connectionService);

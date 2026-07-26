@@ -85,11 +85,11 @@ Focus: make Sshx faster for keyboard-heavy users.
 
 Focus: safer migration and recovery.
 
-- Add `sshx backup`.
-- Add `sshx restore`.
-- Export full config without secrets.
-- Validate backup before restore.
-- Add restore conflict strategy.
+- [x] Add `sshx backup`.
+- [x] Add `sshx restore`.
+- [x] Export full config without secrets.
+- [x] Validate backup before restore.
+- [x] Add restore conflict strategy.
 
 ## v1.0.0 - Stable Release
 
