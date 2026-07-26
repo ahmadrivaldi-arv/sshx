@@ -9,9 +9,9 @@ import { useConnections } from '../hooks/useConnections.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
 import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
+import { useTheme } from '../themes/ThemeContext.js';
+import { getThemeGlyphs } from '../themes/themes.js';
 import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/connection.js';
-
-const ACCENT_COLOR = '#f97316';
 
 interface MainScreenProps {
   connectionService: ConnectionService;
@@ -45,7 +45,7 @@ const fields: FormField[] = [
   { key: 'name', label: 'Name', required: true },
   { key: 'host', label: 'Host', required: true },
   { key: 'username', label: 'Username', required: true },
-  { key: 'port', label: 'Port', required: true, hint: '1–65535' },
+  { key: 'port', label: 'Port', required: true, hint: '1-65535' },
   {
     key: 'password',
     label: 'Password',
@@ -163,8 +163,10 @@ export const MainScreen = ({
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
+  const theme = useTheme();
+  const glyphs = getThemeGlyphs(theme.ascii);
   const { columns, rows } = useTerminalSize();
-  const [forceCompact, setForceCompact] = useState(false);
+  const [compactOverride, setCompactOverride] = useState<boolean>();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ScreenMode>('browse');
   const [message, setMessage] = useState('');
@@ -178,7 +180,8 @@ export const MainScreen = ({
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
   const selectedConnection = visibleConnections[selectedIndex];
-  const compact = forceCompact || columns < 100 || rows < 24;
+  const responsiveCompact = columns < 100 || rows < 24;
+  const compact = responsiveCompact || (compactOverride ?? theme.compact);
   const maxVisible = Math.max(Math.floor((rows - (compact ? 11 : 8)) / 2), 1);
 
   useEffect(() => {
@@ -405,8 +408,12 @@ export const MainScreen = ({
           );
         });
     } else if (input === 'c') {
-      setForceCompact((current) => !current);
-      setMessage(forceCompact ? 'Automatic layout enabled' : 'Compact layout enabled');
+      if (responsiveCompact) {
+        setMessage('Compact layout is required at this terminal size');
+      } else {
+        setCompactOverride(!compact);
+        setMessage(compact ? 'Expanded layout enabled' : 'Compact layout enabled');
+      }
     } else if (input === 'r') {
       void reload(options);
     } else if (key.downArrow || input === 'j') {
@@ -422,9 +429,11 @@ export const MainScreen = ({
 
   const subtitle =
     mode === 'browse'
-      ? `${connections.length} connection${connections.length === 1 ? '' : 's'}`
+      ? `${theme.name} ${glyphs.separator} ${connections.length} connection${
+          connections.length === 1 ? '' : 's'
+        }`
       : mode === 'search'
-        ? `search • ${connections.length} found`
+        ? `search ${glyphs.separator} ${connections.length} found`
         : mode === 'delete-confirm'
           ? 'confirm delete'
           : mode;
@@ -432,34 +441,39 @@ export const MainScreen = ({
   const footerText =
     mode === 'add' || mode === 'edit'
       ? compact
-        ? '↑↓ field  ^U clear  ⏎ next  ^S save  esc cancel'
-        : '↑↓/tab field  •  ctrl+u clear  •  ⏎ next  •  ctrl+s save  •  esc cancel'
+        ? `${glyphs.up}${glyphs.down} field  ^U clear  ${glyphs.enter} next  ^S save  esc cancel`
+        : `${glyphs.up}${glyphs.down}/tab field  ${glyphs.separator}  ctrl+u clear  ${glyphs.separator}  ${glyphs.enter} next  ${glyphs.separator}  ctrl+s save  ${glyphs.separator}  esc cancel`
       : mode === 'delete-confirm'
-        ? 'y confirm  •  n/esc cancel'
+        ? `y confirm  ${glyphs.separator}  n/esc cancel`
         : mode === 'search'
-          ? '↑↓ select  •  ⏎ connect  •  esc clear/back'
+          ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
           : compact
-            ? '⏎ connect  / search  a add  e edit  d delete  q quit'
-            : '⏎ connect  •  / search  •  a add  •  e edit  •  f fav  •  d delete  •  c compact  •  q quit';
+            ? `${glyphs.enter} connect  / search  a add  e edit  d delete  q quit`
+            : `${glyphs.enter} connect  ${glyphs.separator}  / search  ${glyphs.separator}  a add  ${glyphs.separator}  e edit  ${glyphs.separator}  f fav  ${glyphs.separator}  d delete  ${glyphs.separator}  c compact  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
   return (
     <Frame
       title={
-        <Text color={ACCENT_COLOR} bold>
-          ✦ sshx
-          <Text color="gray" dimColor>
+        <Text color={theme.accent} bold>
+          {theme.decorated ? `${glyphs.brand} ` : ''}
+          sshx
+          <Text color={theme.muted} dimColor>
             {' '}
             v{packageJson.version}
           </Text>
         </Text>
       }
-      subtitle={!compact ? <Text color="gray">{subtitle}</Text> : undefined}
+      subtitle={!compact ? <Text color={theme.muted}>{subtitle}</Text> : undefined}
       footer={
         <Box flexDirection="column" width="100%">
-          <Text color="gray">{footerText}</Text>
-          {message ? <Text color="yellow">⚠ {message}</Text> : null}
+          <Text color={theme.muted}>{footerText}</Text>
+          {message ? (
+            <Text color={theme.warning}>
+              {glyphs.warning} {message}
+            </Text>
+          ) : null}
         </Box>
       }
       compact={compact}
@@ -468,11 +482,11 @@ export const MainScreen = ({
       {mode === 'add' || mode === 'edit' ? (
         <Box flexDirection="column" overflow="hidden">
           <Box justifyContent="space-between" marginBottom={compact ? 0 : 1}>
-            <Text color={ACCENT_COLOR} bold>
+            <Text color={theme.accent} bold>
               {mode === 'add' ? 'Add Connection' : 'Edit Connection'}
-              {saving ? ' — saving…' : ''}
+              {saving ? ` ${glyphs.empty} saving${glyphs.ellipsis}` : ''}
             </Text>
-            <Text color="gray">
+            <Text color={theme.muted}>
               {fieldIndex + 1}/{fields.length}
             </Text>
           </Box>
@@ -485,18 +499,18 @@ export const MainScreen = ({
             return (
               <Box key={field.key} flexDirection="column" marginBottom={compact ? 0 : 1}>
                 <Box>
-                  <Text color={active ? ACCENT_COLOR : 'gray'} bold={active}>
-                    {active ? '❯ ' : '  '}
+                  <Text color={active ? theme.accent : theme.muted} bold={active}>
+                    {active ? `${glyphs.cursor} ` : '  '}
                     {field.label.padEnd(compact ? 0 : 18)}
                     {compact ? ': ' : ''}
                   </Text>
-                  <Text {...(active ? { color: ACCENT_COLOR } : {})} dimColor={!active}>
-                    {displayValue || (field.required ? '(required)' : '—')}
-                    {active ? '▊' : ''}
+                  <Text color={active ? theme.accent : theme.text} dimColor={!active}>
+                    {displayValue || (field.required ? '(required)' : glyphs.empty)}
+                    {active ? glyphs.inputCursor : ''}
                   </Text>
                 </Box>
                 {active && field.hint ? (
-                  <Text color="gray" dimColor>
+                  <Text color={theme.muted} dimColor>
                     {'  '}
                     {field.hint}
                   </Text>
@@ -508,31 +522,35 @@ export const MainScreen = ({
       ) : mode === 'delete-confirm' ? (
         <Box
           flexDirection="column"
-          borderStyle={compact ? undefined : 'round'}
-          borderColor="red"
+          borderStyle={compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'round'}
+          borderColor={theme.danger}
           paddingX={compact ? 0 : 2}
           paddingY={compact ? 0 : 1}
         >
-          <Text color="red" bold>
-            Delete “{deleteTarget?.name}”?
+          <Text color={theme.danger} bold>
+            Delete {theme.ascii ? `"${deleteTarget?.name}"` : `“${deleteTarget?.name}”`}?
           </Text>
-          <Text>
+          <Text color={theme.text}>
             {deleteTarget?.username}@{deleteTarget?.host}:{deleteTarget?.port}
           </Text>
-          <Text color="red">This permanently removes the connection and stored password.</Text>
-          {saving ? <Text color="yellow">Deleting…</Text> : null}
+          <Text color={theme.danger}>
+            This permanently removes the connection and stored password.
+          </Text>
+          {saving ? <Text color={theme.warning}>Deleting{glyphs.ellipsis}</Text> : null}
         </Box>
       ) : (
         <Box flexDirection={compact ? 'column' : 'row'} flexGrow={1} overflow="hidden">
           <Box
             flexDirection="column"
             width={compact ? '100%' : Math.max(30, Math.min(52, Math.floor(columns * 0.42)))}
-            borderStyle={compact ? undefined : 'single'}
+            borderStyle={
+              compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'single'
+            }
             borderTop={false}
             borderBottom={false}
             borderLeft={false}
             borderRight={!compact}
-            borderColor="gray"
+            borderColor={theme.border}
             paddingRight={compact ? 0 : 2}
             marginRight={compact ? 0 : 2}
             overflow="hidden"
@@ -540,23 +558,25 @@ export const MainScreen = ({
             <SearchBar query={query} active={mode === 'search'} />
             {loading ? (
               <Box flexDirection="column">
-                <Text color={ACCENT_COLOR}>Loading connections…</Text>
-                <Text color="gray" dimColor>
+                <Text color={theme.accent}>Loading connections{glyphs.ellipsis}</Text>
+                <Text color={theme.muted} dimColor>
                   Reading your local SSH vault
                 </Text>
               </Box>
             ) : error ? (
               <Box flexDirection="column">
-                <Text color="red" bold>
+                <Text color={theme.danger} bold>
                   Could not load connections
                 </Text>
-                <Text color="red">{error}</Text>
-                <Text color="gray">Press r to retry.</Text>
+                <Text color={theme.danger}>{error}</Text>
+                <Text color={theme.muted}>Press r to retry.</Text>
               </Box>
             ) : connections.length === 0 && query ? (
               <Box flexDirection="column">
-                <Text color="gray">No matches for “{query}”.</Text>
-                <Text color="gray" dimColor>
+                <Text color={theme.muted}>
+                  No matches for {theme.ascii ? `"${query}"` : `“${query}”`}.
+                </Text>
+                <Text color={theme.muted} dimColor>
                   Backspace to broaden the search, or Esc to clear it.
                 </Text>
               </Box>

@@ -7,14 +7,25 @@ import { appConfigSchema } from './schema.js';
 
 const defaultConfig: AppConfig = {
   connections: [],
-  recentConnectionIds: []
+  recentConnectionIds: [],
+  theme: {
+    name: 'default',
+    compact: false,
+    ascii: false
+  }
 };
 
 export class ConfigService {
   private readonly storage: JsonFileStorage<unknown>;
+  private readonly paths: ConfigPaths;
 
   public constructor(paths: ConfigPaths = createDefaultConfigPaths()) {
+    this.paths = paths;
     this.storage = new JsonFileStorage<unknown>(paths.configFile, defaultConfig);
+  }
+
+  public getPaths(): ConfigPaths {
+    return this.paths;
   }
 
   public async load(): Promise<AppConfig> {

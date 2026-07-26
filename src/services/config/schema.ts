@@ -16,6 +16,24 @@ export const sshOptionsSchema = z.record(
   z.string().min(1)
 );
 
+export const accentColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'Accent color must use #RRGGBB format');
+
+export const themeNameSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9][a-z0-9-]{0,63}$/,
+    'Theme name must contain lowercase letters, numbers, and hyphens'
+  );
+
+export const themeConfigSchema = z.object({
+  name: themeNameSchema.default('default'),
+  accentColor: accentColorSchema.optional(),
+  compact: z.boolean().default(false),
+  ascii: z.boolean().default(false)
+});
+
 export const sshConnectionSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
@@ -37,7 +55,12 @@ export const sshConnectionSchema = z.object({
 
 export const appConfigSchema = z.object({
   connections: z.array(sshConnectionSchema).default([]),
-  recentConnectionIds: z.array(z.string().uuid()).default([])
+  recentConnectionIds: z.array(z.string().uuid()).default([]),
+  theme: themeConfigSchema.default({
+    name: 'default',
+    compact: false,
+    ascii: false
+  })
 });
 
 export type AppConfigData = z.infer<typeof appConfigSchema>;

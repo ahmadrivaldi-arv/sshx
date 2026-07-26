@@ -9,8 +9,8 @@ A modern terminal SSH manager for managing SSH vaults, hosts, and interactive se
 [![typescript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
 [![package](https://img.shields.io/badge/package-%40ahmdrv%2Fsshx-0f172a)](https://github.com/ahmadrivaldi-arv/sshx)
 
-See released changes in [CHANGELOG.md](CHANGELOG.md) and planned work in
-[ROADMAP.md](ROADMAP.md).
+See released changes in [CHANGELOG.md](CHANGELOG.md), the
+[custom theme guide](THEMES.md), and planned work in [ROADMAP.md](ROADMAP.md).
 
 ## Screenshot
 
@@ -34,6 +34,7 @@ See released changes in [CHANGELOG.md](CHANGELOG.md) and planned work in
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
 - Responsive compact layout for small terminals (toggle manually with `c`).
+- Built-in and externally installed themes, custom accent colors, and persistent compact/ASCII preferences.
 - Secure password storage:
   - macOS: Keychain
   - Linux: Secret Service via `secret-tool`
@@ -53,7 +54,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.4.0.tgz
+npm install -g ./ahmdrv-sshx-0.5.0-rc.1.tgz
 sshx
 ```
 
@@ -94,7 +95,7 @@ e      edit selected connection
 Ctrl+S save immediately while adding/editing
 d      delete selected connection with confirmation
 f      toggle favorite
-c      toggle compact layout
+c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
 ```
@@ -114,6 +115,11 @@ sshx export [options] <file>    Export connections to JSON or YAML
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
 sshx logs [options]             Show Sshx log file
+sshx theme list                 List built-in and installed themes
+sshx theme set <name>           Set theme and display preferences
+sshx theme preview <name>       Preview a theme without applying it
+sshx theme install <file>       Install an external JSON theme
+sshx theme path                 Show the custom theme directory
 ```
 
 ## Examples
@@ -200,6 +206,24 @@ sshx logs -n 200
 sshx logs --path
 ```
 
+Manage themes:
+
+```bash
+sshx theme list
+sshx theme preview dracula
+sshx theme set dracula
+sshx theme set nord --accent '#5e81ac' --compact
+sshx theme set mono --ascii
+sshx theme set default --clear-accent --expanded --unicode
+sshx theme install ~/Downloads/ocean.json
+sshx theme set ocean --clear-accent
+```
+
+Available themes are `default`, `minimal`, `mono`, `dracula`, `nord`, `catppuccin`,
+and `tokyo-night`, plus JSON themes installed in the user theme directory. Theme
+previews do not modify your configuration. See [THEMES.md](THEMES.md) for the
+external theme format and sharing instructions.
+
 ## Configuration
 
 Configuration is stored at:
@@ -232,11 +256,20 @@ Example:
       "updatedAt": "2026-07-02T00:00:00.000Z"
     }
   ],
-  "recentConnectionIds": []
+  "recentConnectionIds": [],
+  "theme": {
+    "name": "dracula",
+    "accentColor": "#bd93f9",
+    "compact": false,
+    "ascii": false
+  }
 }
 ```
 
 Passwords are not stored in `config.json`. Sshx stores only a secret reference and keeps the password in the OS credential store.
+
+`accentColor` is optional and must use `#RRGGBB` format. Compact mode is also
+enabled automatically when the terminal is too small for the expanded layout.
 
 ## Requirements
 
@@ -263,15 +296,15 @@ bun run check
 ```bash
 bun run check
 npm pack --dry-run
-npm publish --access public
+npm publish --access public --tag next
 ```
 
 Create and push the matching Git tag after publishing:
 
 ```bash
-git tag v0.4.0
-git push origin development v0.4.0
+git tag v0.5.0-rc.1
+git push origin development v0.5.0-rc.1
 ```
 
 The published package includes only `dist`, `scripts`, `README.md`, `CHANGELOG.md`,
-and `LICENSE`.
+`THEMES.md`, and `LICENSE`.

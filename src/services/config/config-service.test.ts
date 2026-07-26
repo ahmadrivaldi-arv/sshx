@@ -44,5 +44,10 @@ describe('ConfigService', () => {
 
     expect(config.connections[0]?.sshOptions).toEqual({});
     expect(config.connections[0]?.suppressWeakCryptoWarning).toBe(false);
+    expect(config.theme).toEqual({
+      name: 'default',
+      compact: false,
+      ascii: false
+    });
   });
 });

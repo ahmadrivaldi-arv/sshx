@@ -10,20 +10,25 @@ import { registerImportCommand } from '../commands/import-command.js';
 import { registerListCommand } from '../commands/list-command.js';
 import { registerLogsCommand } from '../commands/logs-command.js';
 import { registerMutationCommands } from '../commands/mutation-commands.js';
+import { registerThemeCommand } from '../commands/theme-command.js';
 import { App } from '../layouts/App.js';
+import { ConfigService } from '../services/config/config-service.js';
 import { ConnectionService } from '../services/config/connection-service.js';
+import { ThemeService } from '../services/config/theme-service.js';
 import { Logger } from '../services/logging/logger.js';
 import { ExportService } from '../services/ssh/export-service.js';
 import { ImportService } from '../services/ssh/import-service.js';
 import { PtySshSession } from '../services/ssh/pty-ssh-session.js';
 import { SecretService } from '../services/ssh/secret-service.js';
 import type { SshConnection } from '../types/connection.js';
+import type { ResolvedTheme } from '../types/theme.js';
 import { handleCliError } from '../utils/error-handler.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 const runTui = async (
   connectionService: ConnectionService,
-  session: PtySshSession
+  session: PtySshSession,
+  theme: ResolvedTheme
 ): Promise<void> => {
   const useAlternateScreen = Boolean(process.stdout.isTTY);
 
@@ -37,6 +42,7 @@ const runTui = async (
     const instance = render(
       <App
         connectionService={connectionService}
+        theme={theme}
         onConnect={(connection) => {
           selectedConnection = connection;
         }}
@@ -63,7 +69,9 @@ const runTui = async (
 
 const main = async (): Promise<void> => {
   const secretService = new SecretService();
-  const connectionService = new ConnectionService(undefined, secretService);
+  const configService = new ConfigService();
+  const connectionService = new ConnectionService(configService, secretService);
+  const themeService = new ThemeService(configService);
   const logger = new Logger();
   const importService = new ImportService(connectionService);
   const exportService = new ExportService(connectionService);
@@ -75,7 +83,7 @@ const main = async (): Promise<void> => {
     .description('A modern terminal SSH manager')
     .version(packageJson.version)
     .action(async (): Promise<void> => {
-      await runTui(connectionService, session);
+      await runTui(connectionService, session, await themeService.getResolved());
     });
 
   registerAddCommand(program, connectionService);
@@ -86,6 +94,7 @@ const main = async (): Promise<void> => {
   registerExportCommand(program, exportService);
   registerConnectCommand(program, connectionService, session);
   registerLogsCommand(program, logger);
+  registerThemeCommand(program, themeService);
 
   await program.parseAsync(process.argv);
 };

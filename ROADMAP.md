@@ -19,8 +19,8 @@ Focus: make the current TUI more stable, readable, and comfortable across termin
 
 Focus: allow users to customize the look and terminal compatibility.
 
-- Add theme config to `config.json`.
-- Add built-in themes:
+- [x] Add theme config to `config.json`.
+- [x] Add built-in themes:
   - default
   - minimal
   - mono
@@ -28,10 +28,10 @@ Focus: allow users to customize the look and terminal compatibility.
   - nord
   - catppuccin
   - tokyo-night
-- Add custom accent color.
-- Add compact mode.
-- Add ASCII mode for terminals with poor Unicode support.
-- Add theme commands:
+- [x] Add custom accent color.
+- [x] Add compact mode.
+- [x] Add ASCII mode for terminals with poor Unicode support.
+- [x] Add theme commands:
   - `sshx theme list`
   - `sshx theme set <name>`
   - `sshx theme preview <name>`
