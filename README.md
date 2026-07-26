@@ -27,9 +27,10 @@ See released changes in [CHANGELOG.md](CHANGELOG.md), the
 - Interactive terminal UI for browsing and connecting to SSH hosts.
 - Add, edit, delete, duplicate, rename, and favorite connections.
 - Realtime search from the TUI with `/`.
-- Recent connection tracking.
+- Recent connection tracking with outcome, duration, and session count metadata.
 - Import hosts from `~/.ssh/config`.
-- Import connections from Sshx JSON/YAML export files.
+- Preview and import connections from Sshx JSON/YAML files with duplicate strategies.
+- Multi-select connections for bulk delete, favorite, group, and tag actions.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
@@ -54,7 +55,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.5.0.tgz
+npm install -g ./ahmdrv-sshx-0.6.0.tgz
 sshx
 ```
 
@@ -95,6 +96,9 @@ e      edit selected connection
 Ctrl+S save immediately while adding/editing
 d      delete selected connection with confirmation
 f      toggle favorite
+Space  select connection for bulk actions
+g      assign a group to selected connections
+t      replace tags on selected connections
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -187,9 +191,13 @@ Import from Sshx export:
 
 ```bash
 sshx import --file connections.json
-sshx import --file connections.yaml
-sshx import --file backup.txt --format json
+sshx import --file connections.json --strategy overwrite
+sshx import --file connections.yaml --strategy rename --apply
+sshx import --file backup.txt --format json --apply
 ```
+
+Imports are preview-only unless `--apply` is provided. Duplicate strategies are
+`skip` (default), `overwrite`, and `rename`.
 
 Export:
 

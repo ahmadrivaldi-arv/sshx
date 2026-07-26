@@ -2,6 +2,7 @@ export type ConnectionColor =
   'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
 
 export type SshOptions = Record<string, string>;
+export type ConnectionOutcome = 'success' | 'failed';
 
 export interface SshConnection {
   id: string;
@@ -20,6 +21,9 @@ export interface SshConnection {
   createdAt: string;
   updatedAt: string;
   lastConnectedAt?: string | undefined;
+  connectionCount: number;
+  lastConnectionStatus?: ConnectionOutcome | undefined;
+  lastConnectionDurationMs?: number | undefined;
 }
 
 export interface ConnectionInput {
@@ -54,3 +58,5 @@ export interface ConnectionListOptions {
   tags?: string[];
   sortBy?: ConnectionSortKey;
 }
+
+export type BulkTagMode = 'replace' | 'append';

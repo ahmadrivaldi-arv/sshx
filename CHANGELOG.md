@@ -5,6 +5,21 @@ All notable changes to Sshx are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-26
+
+### Added
+
+- Read-only import previews with explicit `--apply`.
+- Skip, overwrite, and rename strategies for duplicate imports.
+- Duplicate detection by case-insensitive name or SSH endpoint.
+- TUI multi-select with bulk delete, favorite, group, and tag actions.
+- Connection counts, last outcomes, durations, and activity timestamps.
+
+### Changed
+
+- Connection activity is recorded after SSH exits so failed sessions are represented accurately.
+- Import output now shows every planned action before configuration is changed.
+
 ## [0.5.0] - 2026-07-26
 
 ### Added
@@ -46,5 +61,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Placed OpenSSH options before the destination so they are parsed consistently across platforms.
 - Preserved additional per-host OpenSSH directives when importing SSH config files.
 
+[0.6.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.3.0...v0.4.0

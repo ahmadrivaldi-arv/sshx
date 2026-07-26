@@ -18,7 +18,8 @@ interface MainScreenProps {
   onConnect: (connection: SshConnection) => void;
 }
 
-type ScreenMode = 'browse' | 'search' | 'add' | 'edit' | 'delete-confirm';
+type ScreenMode =
+  'browse' | 'search' | 'add' | 'edit' | 'delete-confirm' | 'bulk-group' | 'bulk-tags';
 
 interface FormState {
   name: string;
@@ -173,7 +174,9 @@ export const MainScreen = ({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [fieldIndex, setFieldIndex] = useState(0);
   const [editingId, setEditingId] = useState<string>();
-  const [deleteTarget, setDeleteTarget] = useState<SshConnection>();
+  const [deleteTargets, setDeleteTargets] = useState<SshConnection[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkValue, setBulkValue] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const options = useMemo(() => ({ search: query }), [query]);
@@ -193,7 +196,8 @@ export const MainScreen = ({
     setForm(emptyForm);
     setFieldIndex(0);
     setEditingId(undefined);
-    setDeleteTarget(undefined);
+    setDeleteTargets([]);
+    setBulkValue('');
     setSaving(false);
   };
 
@@ -266,18 +270,18 @@ export const MainScreen = ({
   };
 
   const deleteConnection = (): void => {
-    if (!deleteTarget || saving) return;
+    if (deleteTargets.length === 0 || saving) return;
 
     setSaving(true);
     setMessage('');
 
     void connectionService
-      .delete(deleteTarget.id)
-      .then(async () => {
-        const deletedName = deleteTarget.name;
+      .bulkDelete(deleteTargets.map(({ id }) => id))
+      .then(async (count) => {
         resetMode();
         setQuery('');
-        setMessage(`Deleted ${deletedName}`);
+        setSelectedIds(new Set());
+        setMessage(`Deleted ${count} connection${count === 1 ? '' : 's'}`);
         await reload({});
       })
       .catch((caughtError: unknown) => {
@@ -361,6 +365,41 @@ export const MainScreen = ({
       return;
     }
 
+    if (mode === 'bulk-group' || mode === 'bulk-tags') {
+      if (key.return) {
+        const ids =
+          selectedIds.size > 0
+            ? [...selectedIds]
+            : selectedConnection
+              ? [selectedConnection.id]
+              : [];
+        const mutation =
+          mode === 'bulk-group'
+            ? connectionService.bulkAssignGroup(ids, bulkValue || undefined)
+            : connectionService.bulkAssignTags(ids, parseTags(bulkValue), 'replace');
+
+        setSaving(true);
+        void mutation
+          .then(async (count) => {
+            const action = mode === 'bulk-group' ? 'group' : 'tags';
+            resetMode();
+            setMessage(`Updated ${action} for ${count} connection${count === 1 ? '' : 's'}`);
+            await reload(options);
+          })
+          .catch((caughtError: unknown) => {
+            setSaving(false);
+            setMessage(
+              caughtError instanceof Error ? caughtError.message : 'Failed to update connections'
+            );
+          });
+      } else if (key.backspace || key.delete) {
+        setBulkValue((current) => current.slice(0, -1));
+      } else if (input && !key.ctrl && !key.meta) {
+        setBulkValue((current) => `${current}${input}`);
+      }
+      return;
+    }
+
     if (mode === 'delete-confirm') {
       if (input.toLowerCase() === 'y') {
         deleteConnection();
@@ -389,16 +428,24 @@ export const MainScreen = ({
       setFieldIndex(0);
       setMessage('');
     } else if (input === 'd' && selectedConnection) {
-      setDeleteTarget(selectedConnection);
+      setDeleteTargets(
+        selectedIds.size > 0
+          ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+          : [selectedConnection]
+      );
       setMode('delete-confirm');
       setMessage('');
     } else if (input === 'f' && selectedConnection) {
-      void connectionService
-        .toggleFavorite(selectedConnection.id)
-        .then(async (connection) => {
+      const selected = selectedIds.size > 0 ? [...selectedIds] : [selectedConnection.id];
+      const mutation =
+        selectedIds.size > 0
+          ? connectionService.bulkSetFavorite(selected, true)
+          : connectionService.toggleFavorite(selectedConnection.id);
+      void mutation
+        .then(async () => {
           const nextConnections = await reload(options);
           const nextItems = getConnectionTreeItems(nextConnections);
-          const nextIndex = nextItems.findIndex((item) => item.id === connection.id);
+          const nextIndex = nextItems.findIndex((item) => item.id === selectedConnection.id);
 
           if (nextIndex >= 0) setSelectedIndex(nextIndex);
         })
@@ -407,6 +454,17 @@ export const MainScreen = ({
             caughtError instanceof Error ? caughtError.message : 'Failed to update connection'
           );
         });
+    } else if (input === ' ' && selectedConnection) {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        if (next.has(selectedConnection.id)) next.delete(selectedConnection.id);
+        else next.add(selectedConnection.id);
+        return next;
+      });
+    } else if ((input === 'g' || input === 't') && selectedConnection) {
+      setMode(input === 'g' ? 'bulk-group' : 'bulk-tags');
+      setBulkValue('');
+      setMessage('');
     } else if (input === 'c') {
       if (responsiveCompact) {
         setMessage('Compact layout is required at this terminal size');
@@ -436,7 +494,11 @@ export const MainScreen = ({
         ? `search ${glyphs.separator} ${connections.length} found`
         : mode === 'delete-confirm'
           ? 'confirm delete'
-          : mode;
+          : mode === 'bulk-group'
+            ? 'assign group'
+            : mode === 'bulk-tags'
+              ? 'assign tags'
+              : mode;
 
   const footerText =
     mode === 'add' || mode === 'edit'
@@ -445,11 +507,13 @@ export const MainScreen = ({
         : `${glyphs.up}${glyphs.down}/tab field  ${glyphs.separator}  ctrl+u clear  ${glyphs.separator}  ${glyphs.enter} next  ${glyphs.separator}  ctrl+s save  ${glyphs.separator}  esc cancel`
       : mode === 'delete-confirm'
         ? `y confirm  ${glyphs.separator}  n/esc cancel`
-        : mode === 'search'
-          ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
-          : compact
-            ? `${glyphs.enter} connect  / search  a add  e edit  d delete  q quit`
-            : `${glyphs.enter} connect  ${glyphs.separator}  / search  ${glyphs.separator}  a add  ${glyphs.separator}  e edit  ${glyphs.separator}  f fav  ${glyphs.separator}  d delete  ${glyphs.separator}  c compact  ${glyphs.separator}  q quit`;
+        : mode === 'bulk-group' || mode === 'bulk-tags'
+          ? `${glyphs.enter} apply  ${glyphs.separator}  esc cancel`
+          : mode === 'search'
+            ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
+            : compact
+              ? `${glyphs.enter} connect  space select  d delete  q quit`
+              : `${glyphs.enter} connect  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  f fav  ${glyphs.separator}  g group  ${glyphs.separator}  t tags  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
@@ -519,6 +583,22 @@ export const MainScreen = ({
             );
           })}
         </Box>
+      ) : mode === 'bulk-group' || mode === 'bulk-tags' ? (
+        <Box flexDirection="column">
+          <Text color={theme.accent} bold>
+            {mode === 'bulk-group' ? 'Assign group' : 'Replace tags'}
+          </Text>
+          <Text color={theme.muted}>
+            {selectedIds.size || (selectedConnection ? 1 : 0)} connection(s)
+          </Text>
+          <Text color={theme.text}>
+            {mode === 'bulk-tags' ? 'Comma-separated tags: ' : 'Group (blank clears): '}
+            <Text color={theme.accent}>
+              {bulkValue}
+              {glyphs.inputCursor}
+            </Text>
+          </Text>
+        </Box>
       ) : mode === 'delete-confirm' ? (
         <Box
           flexDirection="column"
@@ -528,10 +608,18 @@ export const MainScreen = ({
           paddingY={compact ? 0 : 1}
         >
           <Text color={theme.danger} bold>
-            Delete {theme.ascii ? `"${deleteTarget?.name}"` : `“${deleteTarget?.name}”`}?
+            Delete{' '}
+            {deleteTargets.length === 1
+              ? theme.ascii
+                ? `"${deleteTargets[0]?.name}"`
+                : `“${deleteTargets[0]?.name}”`
+              : `${deleteTargets.length} connections`}
+            ?
           </Text>
           <Text color={theme.text}>
-            {deleteTarget?.username}@{deleteTarget?.host}:{deleteTarget?.port}
+            {deleteTargets.length === 1
+              ? `${deleteTargets[0]?.username}@${deleteTargets[0]?.host}:${deleteTargets[0]?.port}`
+              : deleteTargets.map(({ name }) => name).join(', ')}
           </Text>
           <Text color={theme.danger}>
             This permanently removes the connection and stored password.
@@ -584,6 +672,7 @@ export const MainScreen = ({
               <ConnectionTree
                 connections={connections}
                 selectedIndex={selectedIndex}
+                selectedIds={selectedIds}
                 maxVisible={maxVisible}
                 compact={compact}
               />

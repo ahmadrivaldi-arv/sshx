@@ -50,7 +50,10 @@ export const sshConnectionSchema = z.object({
   suppressWeakCryptoWarning: z.boolean().default(false),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  lastConnectedAt: z.string().datetime().optional()
+  lastConnectedAt: z.string().datetime().optional(),
+  connectionCount: z.number().int().min(0).default(0),
+  lastConnectionStatus: z.enum(['success', 'failed']).optional(),
+  lastConnectionDurationMs: z.number().int().min(0).optional()
 });
 
 export const appConfigSchema = z.object({

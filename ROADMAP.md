@@ -40,16 +40,16 @@ Focus: allow users to customize the look and terminal compatibility.
 
 Focus: make Sshx better for managing many connections.
 
-- Add import preview before saving.
-- Add duplicate detection during add/import.
-- Add skip, overwrite, or rename strategy for duplicates.
-- Add bulk actions:
-  - multi-select
-  - delete multiple
-  - favorite multiple
-  - assign group
-  - assign tags
-- Add better recent connection metadata.
+- [x] Add import preview before saving.
+- [x] Add duplicate detection during add/import.
+- [x] Add skip, overwrite, or rename strategy for duplicates.
+- [x] Add bulk actions:
+  - [x] multi-select
+  - [x] delete multiple
+  - [x] favorite multiple
+  - [x] assign group
+  - [x] assign tags
+- [x] Add better recent connection metadata.
 
 ## v0.7.0 - Connection Health
 

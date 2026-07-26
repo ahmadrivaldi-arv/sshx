@@ -113,4 +113,61 @@ describe('ConnectionService', () => {
       'already exists'
     );
   });
+
+  it('detects duplicate endpoints and records connection outcomes', async () => {
+    const service = await createService();
+    const connection = await service.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      port: 2222,
+      username: 'deploy'
+    });
+
+    await expect(
+      service.add({
+        name: 'Production Alias',
+        host: 'PROD.EXAMPLE.COM',
+        port: 2222,
+        username: 'DEPLOY'
+      })
+    ).rejects.toThrow('duplicates');
+
+    await service.recordConnection(connection.id, 'failed', 1250.4);
+    const [recorded] = await service.list();
+
+    expect(recorded).toMatchObject({
+      connectionCount: 1,
+      lastConnectionStatus: 'failed',
+      lastConnectionDurationMs: 1250
+    });
+    expect(recorded?.lastConnectedAt).toBeTruthy();
+  });
+
+  it('applies group, tag, favorite, and delete actions in bulk', async () => {
+    const service = await createService();
+    const first = await service.add({ name: 'First', host: 'one.example.com', username: 'root' });
+    const second = await service.add({ name: 'Second', host: 'two.example.com', username: 'root' });
+
+    await service.bulkSetFavorite([first.id, second.id], true);
+    await service.bulkAssignGroup([first.id, second.id], 'Production');
+    await service.bulkAssignTags([first.id, second.id], ['linux', 'web'], 'append');
+
+    expect(await service.list()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          favorite: true,
+          group: 'Production',
+          tags: ['linux', 'web']
+        }),
+        expect.objectContaining({
+          favorite: true,
+          group: 'Production',
+          tags: ['linux', 'web']
+        })
+      ])
+    );
+
+    await expect(service.bulkDelete([first.id, second.id])).resolves.toBe(2);
+    await expect(service.list()).resolves.toHaveLength(0);
+  });
 });

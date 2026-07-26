@@ -61,8 +61,13 @@ const runTui = async (
   }
 
   if (selectedConnection) {
-    await connectionService.markRecent(selectedConnection.id);
+    const startedAt = Date.now();
     const exitCode = await session.connect(selectedConnection);
+    await connectionService.recordConnection(
+      selectedConnection.id,
+      exitCode === 0 ? 'success' : 'failed',
+      Date.now() - startedAt
+    );
     process.exitCode = exitCode;
   }
 };

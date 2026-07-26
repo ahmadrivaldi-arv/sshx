@@ -7,6 +7,7 @@ import { getThemeGlyphs } from '../themes/themes.js';
 interface ConnectionTreeProps {
   connections: SshConnection[];
   selectedIndex: number;
+  selectedIds?: ReadonlySet<string>;
   maxVisible?: number;
   compact?: boolean;
 }
@@ -36,6 +37,7 @@ export const getConnectionTreeItems = (connections: SshConnection[]): SshConnect
 export const ConnectionTree = ({
   connections,
   selectedIndex,
+  selectedIds = new Set<string>(),
   maxVisible = connections.length,
   compact = false
 }: ConnectionTreeProps): React.ReactElement => {
@@ -116,6 +118,9 @@ export const ConnectionTree = ({
               <Box key={connection.id} flexDirection="row" alignItems="center">
                 <Text color={selected ? theme.accent : theme.muted} bold={selected}>
                   {selected ? `${glyphs.cursor} ` : '  '}
+                </Text>
+                <Text color={selectedIds.has(connection.id) ? theme.accent : theme.muted}>
+                  {selectedIds.has(connection.id) ? '[x] ' : '[ ] '}
                 </Text>
                 <Box>
                   <Text

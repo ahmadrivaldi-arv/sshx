@@ -7,6 +7,7 @@ import { ConnectionService } from '../config/connection-service.js';
 import { ImportService } from './import-service.js';
 
 let tempDir: string | undefined;
+let connectionService: ConnectionService | undefined;
 
 const createService = async (): Promise<ImportService> => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-import-'));
@@ -15,13 +16,15 @@ const createService = async (): Promise<ImportService> => {
     configFile: path.join(tempDir, 'config.json')
   });
 
-  return new ImportService(new ConnectionService(configService));
+  connectionService = new ConnectionService(configService);
+  return new ImportService(connectionService);
 };
 
 afterEach(async () => {
   if (tempDir) {
     await rm(tempDir, { recursive: true, force: true });
     tempDir = undefined;
+    connectionService = undefined;
   }
 });
 
@@ -61,5 +64,47 @@ describe('ImportService', () => {
     expect(imported[0]?.favorite).toBe(true);
     expect(imported[0]?.sshOptions).toEqual({ ServerAliveInterval: '30' });
     expect(imported[0]?.suppressWeakCryptoWarning).toBe(true);
+  });
+
+  it('previews duplicate strategies before applying changes', async () => {
+    const service = await createService();
+    const existing = await connectionService?.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      username: 'deploy',
+      tags: ['old']
+    });
+    const filePath = path.join(tempDir as string, 'duplicates.json');
+    const exportedConnection = {
+      id: '00000000-0000-4000-8000-000000000002',
+      name: 'Production',
+      host: 'new.example.com',
+      port: 22,
+      username: 'root',
+      tags: ['new'],
+      favorite: false,
+      sshOptions: {},
+      suppressWeakCryptoWarning: false,
+      createdAt: '2026-07-02T00:00:00.000Z',
+      updatedAt: '2026-07-02T00:00:00.000Z'
+    };
+    await writeFile(filePath, JSON.stringify({ connections: [exportedConnection] }), 'utf8');
+
+    const skip = await service.previewFile(filePath, 'json', 'skip');
+    const rename = await service.previewFile(filePath, 'json', 'rename');
+    const overwrite = await service.previewFile(filePath, 'json', 'overwrite');
+
+    expect(skip).toMatchObject({ add: 0, skip: 1, overwrite: 0, rename: 0 });
+    expect(rename.items[0]).toMatchObject({ action: 'rename', input: { name: 'Production (2)' } });
+    expect(overwrite).toMatchObject({ add: 0, skip: 0, overwrite: 1, rename: 0 });
+
+    await service.applyPreview(overwrite);
+    expect(await connectionService?.list()).toEqual([
+      expect.objectContaining({
+        id: existing?.id,
+        host: 'new.example.com',
+        tags: ['new']
+      })
+    ]);
   });
 });

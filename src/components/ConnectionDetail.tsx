@@ -37,6 +37,16 @@ export const ConnectionDetail = ({
     ? new Date(connection.lastConnectedAt).toLocaleString()
     : 'Never';
   const sshOptions = formatSshOptions(connection.sshOptions);
+  const connectionSummary =
+    connection.connectionCount === 0
+      ? 'No sessions'
+      : `${connection.connectionCount} session${connection.connectionCount === 1 ? '' : 's'}${
+          connection.lastConnectionStatus ? `, last ${connection.lastConnectionStatus}` : ''
+        }${
+          connection.lastConnectionDurationMs === undefined
+            ? ''
+            : ` in ${connection.lastConnectionDurationMs}ms`
+        }`;
 
   if (compact) {
     return (
@@ -175,6 +185,17 @@ export const ConnectionDetail = ({
           </Box>
           <Box>
             <Text color={theme.text}>{formattedDate}</Text>
+          </Box>
+        </Box>
+
+        <Box flexDirection="row" marginBottom={0.5}>
+          <Box width={14}>
+            <Text color={theme.muted} dimColor>
+              History
+            </Text>
+          </Box>
+          <Box>
+            <Text color={theme.text}>{connectionSummary}</Text>
           </Box>
         </Box>
       </Box>
