@@ -54,7 +54,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-0.5.0-rc.1.tgz
+npm install -g ./ahmdrv-sshx-0.5.0.tgz
 sshx
 ```
 
@@ -296,14 +296,14 @@ bun run check
 ```bash
 bun run check
 npm pack --dry-run
-npm publish --access public --tag next
+npm publish --access public
 ```
 
 Create and push the matching Git tag after publishing:
 
 ```bash
-git tag v0.5.0-rc.1
-git push origin development v0.5.0-rc.1
+git tag v0.5.0
+git push origin development v0.5.0
 ```
 
 The published package includes only `dist`, `scripts`, `README.md`, `CHANGELOG.md`,
