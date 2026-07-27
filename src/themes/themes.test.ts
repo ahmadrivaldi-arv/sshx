@@ -26,6 +26,25 @@ describe('themes', () => {
     expect(getThemeDefinition('dracula').accent).toBe('#bd93f9');
   });
 
+  it('inherits terminal foreground colors for adaptive themes', () => {
+    const adaptive = resolveTheme({
+      name: 'default',
+      compact: false,
+      ascii: false
+    });
+    const mono = resolveTheme({
+      name: 'mono',
+      compact: false,
+      ascii: false
+    });
+
+    expect(adaptive.text).toBe('');
+    expect(adaptive.muted).toBe('');
+    expect(adaptive.border).toBe('');
+    expect(mono.accent).toBe('');
+    expect(mono.danger).toBe('');
+  });
+
   it('uses terminal-safe glyphs in ASCII mode', () => {
     expect(getThemeGlyphs(true)).toMatchObject({
       brand: '*',

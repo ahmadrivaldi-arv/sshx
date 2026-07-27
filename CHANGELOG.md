@@ -23,6 +23,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Changed
 
 - Configuration schema v2 adds snippet storage and automatically migrates v1 config.
+- The in-session snippet picker now uses a clearer full-screen layout with scrolling,
+  selected-snippet details, responsive narrow-terminal rendering, and adaptive ANSI colors.
+- The default, minimal, and mono themes now inherit terminal foreground and background colors
+  for automatic light and dark appearance compatibility.
 
 ### Security
 

@@ -69,7 +69,7 @@ export class PtySshSession {
 
         const closePicker = (command?: string, execute = false): void => {
           picker = undefined;
-          process.stdout.write('\x1B[?1049l');
+          process.stdout.write('\x1B[?25h\x1B[?1049l');
           if (pendingRemoteOutput) {
             process.stdout.write(pendingRemoteOutput);
             pendingRemoteOutput = '';

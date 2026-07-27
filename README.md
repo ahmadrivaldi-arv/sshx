@@ -325,6 +325,10 @@ and `tokyo-night`, plus JSON themes installed in the user theme directory. Theme
 previews do not modify your configuration. See [THEMES.md](THEMES.md) for the
 external theme format and sharing instructions.
 
+`default`, `minimal`, and `mono` inherit the terminal foreground/background, so
+they work with both light and dark terminal appearances. Named palette themes
+such as Dracula and Nord intentionally target dark terminals.
+
 ## Configuration
 
 Configuration is stored at:

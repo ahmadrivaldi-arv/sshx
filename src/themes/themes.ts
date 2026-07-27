@@ -10,11 +10,11 @@ export const builtInThemes: readonly ThemeDefinition[] = [
   {
     name: 'default',
     label: 'Default',
-    description: 'Sshx orange with familiar terminal colors',
+    description: 'Adaptive terminal colors with the sshx orange accent',
     accent: '#f97316',
-    muted: 'gray',
-    border: 'gray',
-    text: 'white',
+    muted: 'terminal',
+    border: 'terminal',
+    text: 'terminal',
     favorite: 'yellow',
     warning: 'yellow',
     danger: 'red',
@@ -25,12 +25,12 @@ export const builtInThemes: readonly ThemeDefinition[] = [
   {
     name: 'minimal',
     label: 'Minimal',
-    description: 'Quiet, borderless interface with reduced decoration',
-    accent: 'white',
-    muted: 'gray',
-    border: 'gray',
-    text: 'white',
-    favorite: 'white',
+    description: 'Adaptive terminal colors with reduced decoration',
+    accent: 'terminal',
+    muted: 'terminal',
+    border: 'terminal',
+    text: 'terminal',
+    favorite: 'terminal',
     warning: 'yellow',
     danger: 'red',
     decorated: false,
@@ -40,14 +40,14 @@ export const builtInThemes: readonly ThemeDefinition[] = [
   {
     name: 'mono',
     label: 'Mono',
-    description: 'Monochrome palette for limited-color terminals',
-    accent: 'white',
-    muted: 'gray',
-    border: 'white',
-    text: 'white',
-    favorite: 'white',
-    warning: 'white',
-    danger: 'white',
+    description: 'Adaptive monochrome palette for light, dark, and limited-color terminals',
+    accent: 'terminal',
+    muted: 'terminal',
+    border: 'terminal',
+    text: 'terminal',
+    favorite: 'terminal',
+    warning: 'terminal',
+    danger: 'terminal',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -133,10 +133,18 @@ export const resolveTheme = (
   themeDefinition?: ThemeDefinition
 ): ResolvedTheme => {
   const definition = themeDefinition ?? getThemeDefinition(config.name);
+  const resolveColor = (color: string): string => (color === 'terminal' ? '' : color);
+  const accent = config.accentColor ?? definition.accent;
 
   return {
     ...definition,
-    accent: config.accentColor ?? definition.accent,
+    accent: resolveColor(accent),
+    muted: resolveColor(definition.muted),
+    border: resolveColor(definition.border),
+    text: resolveColor(definition.text),
+    favorite: resolveColor(definition.favorite),
+    warning: resolveColor(definition.warning),
+    danger: resolveColor(definition.danger),
     ...(config.accentColor ? { configuredAccent: config.accentColor } : {}),
     compact: config.compact,
     ascii: config.ascii

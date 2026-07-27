@@ -41,4 +41,32 @@ describe('SessionSnippetPicker', () => {
   it('deduplicates placeholder names', () => {
     expect(getSnippetVariables('echo {{host}} {{ host }} {{port}}')).toEqual(['host', 'port']);
   });
+
+  it('renders a colorful, unambiguous selected row and detail panel', () => {
+    const picker = new SessionSnippetPicker([
+      snippet,
+      { ...snippet, id: '00000000-0000-4000-8000-000000000011', name: 'System uptime' }
+    ]);
+    const firstRender = picker.render();
+
+    expect(firstRender).toContain('\x1B[7m');
+    expect(firstRender).not.toContain('[38;5;');
+    expect(firstRender).not.toContain('[48;5;');
+    expect(firstRender).toContain('SELECTED');
+    expect(firstRender).toContain('Docker logs');
+    expect(firstRender).toContain('Follow logs');
+    expect(firstRender).toContain('#docker');
+
+    picker.handleInput('\x1b[B');
+    expect(picker.render()).toContain('System uptime');
+  });
+
+  it('keeps the colorful picker inside a narrow terminal', () => {
+    const picker = new SessionSnippetPicker([snippet]);
+    const rendered = picker.render(32);
+    const controlSequence = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[A-Za-z]`, 'g');
+    const visibleLines = rendered.replace(controlSequence, '').split('\r\n');
+
+    expect(visibleLines.every((line) => [...line].length <= 30)).toBe(true);
+  });
 });

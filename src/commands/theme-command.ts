@@ -25,7 +25,8 @@ const parseThemeName = (value: string): ThemeName => {
   throw new Error('Theme name must contain lowercase letters, numbers, and hyphens');
 };
 
-const colorize = (color: string, value: string): string => {
+const colorize = (color: string | undefined, value: string): string => {
+  if (!color) return value;
   if (color.startsWith('#')) return chalk.hex(color)(value);
   if (color === 'gray') return chalk.gray(value);
   if (color === 'yellow') return chalk.yellow(value);
@@ -61,7 +62,7 @@ export const renderThemePreview = (theme: ResolvedTheme): string => {
       theme.muted,
       `compact: ${theme.compact ? 'on' : 'off'} ${glyphs.separator} charset: ${
         theme.ascii ? 'ascii' : 'unicode'
-      } ${glyphs.separator} accent: ${theme.accent}`
+      } ${glyphs.separator} accent: ${theme.accent ?? 'terminal'}`
     )
   ];
 
@@ -138,7 +139,7 @@ export const registerThemeCommand = (program: Command, service: ThemeService): v
       const theme = await service.update(patch);
 
       process.stdout.write(
-        `Theme set to ${theme.name} (accent ${theme.accent}, compact ${
+        `Theme set to ${theme.name} (accent ${theme.accent ?? 'terminal'}, compact ${
           theme.compact ? 'on' : 'off'
         }, ASCII ${theme.ascii ? 'on' : 'off'})\n`
       );
