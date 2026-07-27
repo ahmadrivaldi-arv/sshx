@@ -12,7 +12,7 @@ export const paletteCommandNames = [
 export type PaletteCommandName = (typeof paletteCommandNames)[number];
 export type ExternalPaletteCommand = Extract<
   PaletteCommandName,
-  'import' | 'export' | 'logs' | 'theme' | 'snippet'
+  'import' | 'export' | 'logs' | 'theme'
 >;
 
 export interface PaletteCommand {

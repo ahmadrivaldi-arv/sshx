@@ -44,6 +44,10 @@ describe('ConfigService', () => {
 
     expect(config.configVersion).toBe(2);
     expect(config.snippets).toEqual([]);
+    expect(config.keymap).toEqual({
+      snippetPicker: ['f2', 'ctrl-b-s'],
+      snippetManager: 's'
+    });
     expect(config.connections[0]?.sshOptions).toEqual({});
     expect(config.connections[0]?.suppressWeakCryptoWarning).toBe(false);
     expect(config.theme).toEqual({

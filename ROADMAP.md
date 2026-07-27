@@ -110,6 +110,8 @@ Focus: keep users inside Sshx between sessions and make repeatable remote comman
 - [x] Run SSH as a native full-screen session and return to connections when it exits.
 - [x] Add versioned command snippet storage and automatic config migration.
 - [x] Add snippet CRUD, tag filtering, and fuzzy search commands.
+- [x] Add snippet search and CRUD directly inside the TUI.
+- [x] Add persistent configurable keymaps for snippet workflows.
 - [x] Add `:snippet <query>` to the TUI command palette.
 - [x] Add an in-session snippet picker with `F2` and prefix alternatives.
 - [x] Preview snippets before inserting or executing them.

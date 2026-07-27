@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { snippetPickerBindings } from '../../types/keymap.js';
 
 export const connectionColorSchema = z.enum([
   'red',
@@ -97,11 +98,26 @@ export const commandSnippetSchema = z.object({
   updatedAt: z.string().datetime()
 });
 
+export const keymapConfigSchema = z.object({
+  snippetPicker: z
+    .array(z.enum(snippetPickerBindings))
+    .min(1, 'Configure at least one snippet picker shortcut')
+    .default(['f2', 'ctrl-b-s']),
+  snippetManager: z
+    .string()
+    .regex(/^[a-z]$/, 'Snippet manager shortcut must be one lowercase letter')
+    .default('s')
+});
+
 export const appConfigSchema = z.object({
   configVersion: z.literal(2),
   connections: z.array(sshConnectionSchema).default([]),
   recentConnectionIds: z.array(z.string().uuid()).default([]),
   snippets: z.array(commandSnippetSchema).default([]),
+  keymap: keymapConfigSchema.default({
+    snippetPicker: ['f2', 'ctrl-b-s'],
+    snippetManager: 's'
+  }),
   theme: themeConfigSchema.default({
     name: 'default',
     compact: false,

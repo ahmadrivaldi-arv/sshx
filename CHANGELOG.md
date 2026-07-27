@@ -12,8 +12,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Native full-screen SSH sessions that preserve normal terminal cursor, input, and application behavior.
 - Persistent TUI navigation that returns to the connection list when SSH exits.
 - Versioned command snippets with CLI CRUD, tag filters, and fuzzy search.
+- A TUI snippet manager with search, add, edit, and delete workflows.
+- Persistent configurable keymaps for the TUI manager and in-session picker.
 - `:snippet <query>` in the TUI command palette.
-- A local in-session picker opened with `F2`, `Ctrl+B` then `S`, or legacy `Ctrl+G` then `S`.
+- A local in-session picker with configurable `F2`, `Ctrl+B`, `Ctrl+G`, or `Ctrl+]` bindings.
 - Placeholder prompts for values such as `{{container}}`.
 - Preview-first insertion with separate insert and insert-and-execute actions.
 - Snippet support in full backup and restore conflict strategies.

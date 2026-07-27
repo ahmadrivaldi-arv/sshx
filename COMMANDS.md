@@ -96,9 +96,9 @@ Health results are `online`, `unreachable`, `timeout`, or `auth-required`.
 
 Sessions launched from the TUI temporarily take over the native terminal like
 Nano or Vim while the Sshx browser remains alive in the background. Press `F2`
-to open the local snippet picker. `Ctrl+B`, then `S` is also supported, with
-`Ctrl+G`, then `S` retained as a legacy shortcut. Exiting the remote shell
-returns to the connection list.
+to open the local snippet picker. `Ctrl+B`, then `S` is enabled by default;
+`Ctrl+G`, then `S` and `Ctrl+]`, then `S` can be configured. Exiting the remote
+shell returns to the connection list.
 
 ## Import and export
 
@@ -175,6 +175,31 @@ Edit options:
 Use placeholders such as `{{container}}` in a command. The in-session picker
 prompts for each value, previews the rendered command, and lets you insert with
 `I` or insert and execute with `X`/`Enter`.
+
+The same CRUD workflow is available in the TUI. Press the configured snippet
+manager key (`s` by default) from the connection browser, or use `:snippet
+<query>` from the command palette.
+
+## Keymaps
+
+```text
+sshx keymap
+sshx keymap set snippet-picker <binding[,binding...]>
+sshx keymap set snippet-manager <key>
+sshx keymap reset
+```
+
+Supported picker bindings:
+
+```text
+f2
+ctrl-b-s
+ctrl-g-s
+ctrl-]-s
+```
+
+The snippet-manager shortcut must be one lowercase letter that does not
+conflict with an existing connection-browser action.
 
 ## Themes
 

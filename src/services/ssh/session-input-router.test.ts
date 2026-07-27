@@ -8,7 +8,7 @@ describe('native session input', () => {
   });
 
   it('opens snippets after Ctrl+G or Ctrl+B then S without forwarding the prefix', () => {
-    expect(routeSessionInput('\x07S')).toEqual({
+    expect(routeSessionInput('\x07S', undefined, ['ctrl-g-s'])).toEqual({
       remoteData: '',
       pendingPrefix: undefined,
       openSnippets: true,
@@ -39,5 +39,10 @@ describe('native session input', () => {
       openSnippets: false,
       remainder: ''
     });
+  });
+
+  it('does not consume shortcuts that are not configured', () => {
+    expect(routeSessionInput('\x1bOQ', undefined, ['ctrl-b-s']).remoteData).toBe('\x1bOQ');
+    expect(routeSessionInput('\x07s', undefined, ['f2']).remoteData).toBe('\x07s');
   });
 });

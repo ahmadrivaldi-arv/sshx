@@ -2,6 +2,7 @@ import process from 'node:process';
 import pty from 'node-pty';
 import type { SshConnection } from '../../types/connection.js';
 import { AppError } from '../../utils/app-error.js';
+import { KeymapService } from '../config/keymap-service.js';
 import { SnippetService } from '../config/snippet-service.js';
 import { Logger } from '../logging/logger.js';
 import { normalizeNativeTerminalInput, routeSessionInput } from './session-input-router.js';
@@ -13,15 +14,18 @@ export class PtySshSession {
   private readonly logger: Logger;
   private readonly secretService: SecretService;
   private readonly snippetService: SnippetService;
+  private readonly keymapService: KeymapService;
 
   public constructor(
     logger: Logger = new Logger(),
     secretService: SecretService = new SecretService(),
-    snippetService: SnippetService = new SnippetService()
+    snippetService: SnippetService = new SnippetService(),
+    keymapService: KeymapService = new KeymapService()
   ) {
     this.logger = logger;
     this.secretService = secretService;
     this.snippetService = snippetService;
+    this.keymapService = keymapService;
   }
 
   public async connect(connection: SshConnection): Promise<number> {
@@ -32,6 +36,7 @@ export class PtySshSession {
     let passwordSent = false;
     let outputBuffer = '';
     const snippets = await this.snippetService.list();
+    const keymap = await this.keymapService.get();
 
     try {
       process.stdout.write('\x1Bc');
@@ -95,7 +100,7 @@ export class PtySshSession {
             return;
           }
 
-          const routed = routeSessionInput(input, pendingPrefix);
+          const routed = routeSessionInput(input, pendingPrefix, keymap.snippetPicker);
           pendingPrefix = routed.pendingPrefix;
           if (routed.remoteData) shell.write(routed.remoteData);
           if (routed.openSnippets) {

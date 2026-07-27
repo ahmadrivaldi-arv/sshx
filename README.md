@@ -40,6 +40,8 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - Native full-screen SSH sessions through `node-pty`, with normal terminal cursor and input behavior.
 - Persistent TUI sessions: exiting SSH returns to the connection browser instead of closing Sshx.
 - Reusable command snippets with fuzzy search, tags, placeholders, and in-session preview.
+- A TUI snippet manager for searching, adding, editing, and deleting snippets.
+- Configurable snippet-manager and in-session picker keymaps.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
 - Responsive compact layout for small terminals (toggle manually with `c`).
 - Built-in and externally installed themes, custom accent colors, and persistent compact/ASCII preferences.
@@ -109,6 +111,7 @@ t      replace tags on selected connections
 h      check selected or multi-selected connection health
 H      check all visible connection health
 :      open the fuzzy command palette
+s      open the snippet manager (configurable)
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -132,6 +135,7 @@ sshx export [options] <file>    Export connections to JSON or YAML
 sshx backup [options] <file>    Back up the full configuration without secrets
 sshx restore [options] <file>   Validate and restore an Sshx backup
 sshx snippet <command>          Add, edit, search, or delete command snippets
+sshx keymap <command>           Show, configure, or reset keyboard shortcuts
 sshx check [options] [target]   Check SSH reachability for one or all connections
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
@@ -258,13 +262,29 @@ sshx snippet edit "Docker logs" --command 'docker logs --tail 100 -f {{container
 sshx snippet delete "Docker logs"
 ```
 
+Snippets can also be managed entirely inside the TUI. Press `s` from the
+connection browser, or run `:snippet` from the command palette. Inside the
+manager, use `a` to add, `e` to edit, `d` to delete, and `/` to search.
+
 Like Nano or Vim, SSH temporarily takes over the native terminal while Sshx
 remains alive in the background. Press `F2` to open the local snippet picker.
-`Ctrl+B`, then `S` is available as a prefix alternative; the legacy `Ctrl+G`,
-then `S` remains supported. Search and select a snippet, fill any
+`Ctrl+B`, then `S` is enabled as a prefix alternative; `Ctrl+G`, then `S` and
+`Ctrl+]`, then `S` are available as configurable bindings. Search and select a snippet, fill any
 `{{placeholder}}` values, then press `I` to insert it without executing or
 `X`/`Enter` to insert and execute. Exiting the remote shell returns to the Sshx
 connection list.
+
+Configure keymaps:
+
+```bash
+sshx keymap
+sshx keymap set snippet-picker f2,ctrl-]-s
+sshx keymap set snippet-manager n
+sshx keymap reset
+```
+
+Supported picker bindings are `f2`, `ctrl-b-s`, `ctrl-g-s`, and `ctrl-]-s`.
+The snippet-manager binding is one unreserved lowercase letter.
 
 View logs:
 
@@ -350,6 +370,10 @@ Example:
       "updatedAt": "2026-07-27T00:00:00.000Z"
     }
   ],
+  "keymap": {
+    "snippetPicker": ["f2", "ctrl-b-s"],
+    "snippetManager": "s"
+  },
   "theme": {
     "name": "dracula",
     "accentColor": "#bd93f9",

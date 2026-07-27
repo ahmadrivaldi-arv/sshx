@@ -6,13 +6,21 @@ export interface SessionInputRoute {
 }
 
 const snippetFunctionKeys = new Set(['\x1bOQ', '\x1b[12~', '\x1b[[B']);
-const snippetPrefixes = new Set(['\x02', '\x07']);
+const prefixBytes: Partial<Record<SnippetPickerBinding, string>> = {
+  'ctrl-b-s': '\x02',
+  'ctrl-g-s': '\x07',
+  'ctrl-]-s': '\x1d'
+};
 
 export const normalizeNativeTerminalInput = (input: string): string =>
   input === '\n' ? '\r' : input;
 
-export const routeSessionInput = (input: string, pendingPrefix?: string): SessionInputRoute => {
-  if (snippetFunctionKeys.has(input)) {
+export const routeSessionInput = (
+  input: string,
+  pendingPrefix?: string,
+  bindings: SnippetPickerBinding[] = ['f2', 'ctrl-b-s']
+): SessionInputRoute => {
+  if (bindings.includes('f2') && snippetFunctionKeys.has(input)) {
     return {
       remoteData: '',
       pendingPrefix: undefined,
@@ -38,9 +46,14 @@ export const routeSessionInput = (input: string, pendingPrefix?: string): Sessio
     };
   }
 
+  const configuredPrefixes = new Set(
+    bindings
+      .map((binding) => prefixBytes[binding])
+      .filter((prefix): prefix is string => Boolean(prefix))
+  );
   let prefixIndex = -1;
   for (let index = 0; index < input.length; index += 1) {
-    if (snippetPrefixes.has(input[index] ?? '')) {
+    if (configuredPrefixes.has(input[index] ?? '')) {
       prefixIndex = index;
       break;
     }
@@ -66,9 +79,10 @@ export const routeSessionInput = (input: string, pendingPrefix?: string): Sessio
     };
   }
 
-  const routed = routeSessionInput(afterPrefix, prefix);
+  const routed = routeSessionInput(afterPrefix, prefix, bindings);
   return {
     ...routed,
     remoteData: `${beforePrefix}${routed.remoteData}`
   };
 };
+import type { SnippetPickerBinding } from '../../types/keymap.js';

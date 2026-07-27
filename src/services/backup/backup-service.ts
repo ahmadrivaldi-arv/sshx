@@ -201,6 +201,7 @@ export class BackupService {
         ...new Set([...restoredRecentIds, ...current.recentConnectionIds])
       ].filter((id) => connections.some((connection) => connection.id === id)),
       snippets,
+      keymap: backup.config.keymap,
       theme: backup.config.theme
     });
 

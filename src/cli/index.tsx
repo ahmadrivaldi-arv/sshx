@@ -9,6 +9,7 @@ import { registerConnectCommand } from '../commands/connect-command.js';
 import { registerEditCommand } from '../commands/edit-command.js';
 import { registerExportCommand } from '../commands/export-command.js';
 import { registerImportCommand } from '../commands/import-command.js';
+import { registerKeymapCommand } from '../commands/keymap-command.js';
 import { registerListCommand } from '../commands/list-command.js';
 import { registerLogsCommand } from '../commands/logs-command.js';
 import { registerMutationCommands } from '../commands/mutation-commands.js';
@@ -18,6 +19,7 @@ import { App } from '../layouts/App.js';
 import { BackupService } from '../services/backup/backup-service.js';
 import { ConfigService } from '../services/config/config-service.js';
 import { ConnectionService } from '../services/config/connection-service.js';
+import { KeymapService } from '../services/config/keymap-service.js';
 import { SnippetService } from '../services/config/snippet-service.js';
 import { ThemeService } from '../services/config/theme-service.js';
 import { Logger } from '../services/logging/logger.js';
@@ -33,9 +35,11 @@ import packageJson from '../../package.json' with { type: 'json' };
 
 const runTui = async (
   connectionService: ConnectionService,
+  snippetService: SnippetService,
   healthService: ConnectionHealthService,
   session: PtySshSession,
   themeService: ThemeService,
+  keymapService: KeymapService,
   onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>
 ): Promise<void> => {
   const useAlternateScreen = Boolean(process.stdout.isTTY);
@@ -49,7 +53,9 @@ const runTui = async (
       const instance = render(
         <App
           connectionService={connectionService}
+          snippetService={snippetService}
           healthService={healthService}
+          keymap={await keymapService.get()}
           onPaletteCommand={onPaletteCommand}
           theme={await themeService.getResolved()}
           onConnect={(connection) => {
@@ -84,13 +90,14 @@ const main = async (): Promise<void> => {
   const configService = new ConfigService();
   const connectionService = new ConnectionService(configService, secretService);
   const snippetService = new SnippetService(configService);
+  const keymapService = new KeymapService(configService);
   const themeService = new ThemeService(configService);
   const logger = new Logger();
   const importService = new ImportService(connectionService);
   const backupService = new BackupService(configService);
   const healthService = new ConnectionHealthService(connectionService);
   const exportService = new ExportService(connectionService);
-  const session = new PtySshSession(logger, secretService, snippetService);
+  const session = new PtySshSession(logger, secretService, snippetService, keymapService);
   const program = new Command();
   const onPaletteCommand = async (
     command: ExternalPaletteCommand,
@@ -104,15 +111,6 @@ const main = async (): Promise<void> => {
       if (!name) throw new Error('Usage: :theme <name>');
       const resolved = await themeService.update({ name });
       return `Theme set to ${resolved.name}; restart the TUI to apply it`;
-    }
-    if (command === 'snippet') {
-      const query = args.join(' ').trim();
-      const snippets = await snippetService.list(query ? { search: query } : {});
-      if (snippets.length === 0) return 'No matching snippets';
-      return snippets
-        .slice(0, 3)
-        .map(({ name, command: snippetCommand }) => `${name}: ${snippetCommand}`)
-        .join(' | ');
     }
     if (command === 'export') {
       const file = args[0];
@@ -145,7 +143,15 @@ const main = async (): Promise<void> => {
     .description('A modern terminal SSH manager')
     .version(packageJson.version)
     .action(async (): Promise<void> => {
-      await runTui(connectionService, healthService, session, themeService, onPaletteCommand);
+      await runTui(
+        connectionService,
+        snippetService,
+        healthService,
+        session,
+        themeService,
+        keymapService,
+        onPaletteCommand
+      );
     });
 
   registerAddCommand(program, connectionService);
@@ -153,6 +159,7 @@ const main = async (): Promise<void> => {
   registerEditCommand(program, connectionService);
   registerListCommand(program, connectionService);
   registerMutationCommands(program, connectionService);
+  registerKeymapCommand(program, keymapService);
   registerSnippetCommand(program, snippetService);
   registerImportCommand(program, importService);
   registerCheckCommand(program, connectionService, healthService);

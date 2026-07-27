@@ -80,6 +80,10 @@ describe('BackupService', () => {
       }
     ];
     sourceConfig.theme = { ...sourceConfig.theme, name: 'nord' };
+    sourceConfig.keymap = {
+      snippetPicker: ['ctrl-]-s'],
+      snippetManager: 'n'
+    };
     const file = path.join(tempDir as string, 'restore.json');
     await writeFile(
       file,
@@ -102,6 +106,12 @@ describe('BackupService', () => {
         tags: ['restored']
       })
     ]);
+    await expect(config.load()).resolves.toMatchObject({
+      keymap: {
+        snippetPicker: ['ctrl-]-s'],
+        snippetManager: 'n'
+      }
+    });
 
     await expect(backup.restore(file, 'rename')).resolves.toMatchObject({ renamed: 1 });
     expect((await connections.list()).map(({ name }) => name)).toEqual([
