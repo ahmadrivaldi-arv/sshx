@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createConfigPaths, expandHome } from './paths.js';
 
@@ -35,7 +36,9 @@ describe('config paths', () => {
         homeDirectory: '/Users/dev'
       }).configFile
     ).toBe('/Users/dev/.config/sshx/config.json');
-    expect(expandHome('~/keys/id_ed25519', '/Users/dev')).toBe('/Users/dev/keys/id_ed25519');
-    expect(expandHome('~\\keys', '/Users/dev')).toBe('/Users/dev/keys');
+    expect(expandHome('~/keys/id_ed25519', '/Users/dev')).toBe(
+      path.join('/Users/dev', 'keys/id_ed25519')
+    );
+    expect(expandHome('~\\keys', '/Users/dev')).toBe(path.join('/Users/dev', 'keys'));
   });
 });
