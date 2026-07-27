@@ -2,6 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const expectedRepositoryUrl = 'https://github.com/ahmadrivaldi-arv/sshx';
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const packed = spawnSync(npmCommand, ['pack', '--json', '--ignore-scripts'], {
   cwd: new URL('..', import.meta.url),
@@ -41,6 +42,11 @@ try {
   if (manifest.version !== packageJson.version) {
     throw new Error(
       `Packed version ${manifest.version} does not match package.json ${packageJson.version}`
+    );
+  }
+  if (packageJson.repository?.url !== expectedRepositoryUrl) {
+    throw new Error(
+      `package.json repository.url must be ${expectedRepositoryUrl} for npm provenance`
     );
   }
   if (missing.length > 0) {
