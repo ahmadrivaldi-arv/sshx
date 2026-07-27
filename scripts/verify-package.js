@@ -5,11 +5,16 @@ const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.me
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const packed = spawnSync(npmCommand, ['pack', '--json', '--ignore-scripts'], {
   cwd: new URL('..', import.meta.url),
-  encoding: 'utf8'
+  encoding: 'utf8',
+  shell: process.platform === 'win32'
 });
 
+if (packed.error) {
+  throw packed.error;
+}
+
 if (packed.status !== 0) {
-  process.stderr.write(packed.stderr || packed.stdout);
+  process.stderr.write(packed.stderr || packed.stdout || 'npm pack failed without output\n');
   process.exit(packed.status ?? 1);
 }
 
