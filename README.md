@@ -37,8 +37,8 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - Versioned full-configuration backup and restore without secret references.
 - Versioned configuration migration and cross-platform release verification.
 - Export connections to JSON or YAML.
-- Interactive SSH sessions through `node-pty`.
-- Persistent TUI sessions: exiting SSH returns to Sshx instead of closing it.
+- Native full-screen SSH sessions through `node-pty`, with normal terminal cursor and input behavior.
+- Persistent TUI sessions: exiting SSH returns to the connection browser instead of closing Sshx.
 - Reusable command snippets with fuzzy search, tags, placeholders, and in-session preview.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
 - Responsive compact layout for small terminals (toggle manually with `c`).
@@ -258,10 +258,13 @@ sshx snippet edit "Docker logs" --command 'docker logs --tail 100 -f {{container
 sshx snippet delete "Docker logs"
 ```
 
-After connecting through the TUI, press `Ctrl+G`, then `S` to open the local
-snippet picker. Search and select a snippet, fill any `{{placeholder}}` values,
-then press `I` to insert it without executing or `X`/`Enter` to insert and
-execute. Exiting the SSH session returns to the Sshx connection list.
+Like Nano or Vim, SSH temporarily takes over the native terminal while Sshx
+remains alive in the background. Press `F2` to open the local snippet picker.
+`Ctrl+B`, then `S` is available as a prefix alternative; the legacy `Ctrl+G`,
+then `S` remains supported. Search and select a snippet, fill any
+`{{placeholder}}` values, then press `I` to insert it without executing or
+`X`/`Enter` to insert and execute. Exiting the remote shell returns to the Sshx
+connection list.
 
 View logs:
 

@@ -4,6 +4,7 @@ import type { SshConnection } from '../../types/connection.js';
 import { AppError } from '../../utils/app-error.js';
 import { SnippetService } from '../config/snippet-service.js';
 import { Logger } from '../logging/logger.js';
+import { normalizeNativeTerminalInput, routeSessionInput } from './session-input-router.js';
 import { SessionSnippetPicker } from './session-snippet-picker.js';
 import { SecretService } from './secret-service.js';
 import { buildSshCommand } from './ssh-command.js';
@@ -53,7 +54,7 @@ export class PtySshSession {
           env: process.env
         });
         let settled = false;
-        let prefixPending = false;
+        let pendingPrefix: string | undefined;
         let picker: SessionSnippetPicker | undefined;
         let pendingRemoteOutput = '';
 
@@ -75,14 +76,15 @@ export class PtySshSession {
           if (picker) process.stdout.write(picker.render(process.stdout.columns || 80));
         };
 
-        const openPicker = (): void => {
+        const openPicker = (): SessionSnippetPicker => {
           picker = new SessionSnippetPicker(snippets);
           process.stdout.write('\x1B[?1049h');
           renderPicker();
+          return picker;
         };
 
         const onInput = (data: Buffer): void => {
-          const input = data.toString();
+          const input = normalizeNativeTerminalInput(data.toString());
           if (picker) {
             const action = picker.handleInput(input);
             if (action.close) {
@@ -93,26 +95,16 @@ export class PtySshSession {
             return;
           }
 
-          let remoteInput = '';
-          for (const character of input) {
-            if (prefixPending) {
-              prefixPending = false;
-              if (character.toLowerCase() === 's') {
-                if (remoteInput) shell.write(remoteInput);
-                remoteInput = '';
-                openPicker();
-                continue;
-              }
-              remoteInput += `\x07${character}`;
-              continue;
-            }
-            if (character === '\x07') {
-              prefixPending = true;
-            } else {
-              remoteInput += character;
+          const routed = routeSessionInput(input, pendingPrefix);
+          pendingPrefix = routed.pendingPrefix;
+          if (routed.remoteData) shell.write(routed.remoteData);
+          if (routed.openSnippets) {
+            const activePicker = openPicker();
+            if (routed.remainder) {
+              activePicker.handleInput(routed.remainder);
+              renderPicker();
             }
           }
-          if (remoteInput) shell.write(remoteInput);
         };
 
         const cleanup = (): void => {
