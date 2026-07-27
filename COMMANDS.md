@@ -1,6 +1,6 @@
 # Command Reference
 
-This is the complete command-line reference for Sshx v1.0.0. Run
+This is the complete command-line reference for Sshx v1.1.0. Run
 `sshx <command> --help` for the same options in the terminal.
 
 ## Global
@@ -94,6 +94,9 @@ Health options:
 
 Health results are `online`, `unreachable`, `timeout`, or `auth-required`.
 
+When a session launched from the TUI exits, Sshx returns to the connection list.
+During the session, press `Ctrl+G`, then `S` to open the local snippet picker.
+
 ## Import and export
 
 ### `sshx import`
@@ -134,8 +137,41 @@ Restore options:
 ```
 
 `replace` replaces the complete current vault. Backups include configuration,
-connection metadata, recents, and theme preferences, but exclude passwords and
-password secret references.
+connection metadata, recents, snippets, and theme preferences, but exclude
+passwords and password secret references.
+
+## Command snippets
+
+```text
+sshx snippet
+sshx snippet list [--search <query>] [--tags <comma-separated>]
+sshx snippet show <name-or-id>
+sshx snippet add <name> --command <command> [options]
+sshx snippet edit <name-or-id> [options]
+sshx snippet delete <name-or-id>
+```
+
+Add options:
+
+```text
+-c, --command <command>          Required single-line command
+-d, --description <text>
+-t, --tags <comma-separated>
+```
+
+Edit options:
+
+```text
+--name <name>
+-c, --command <command>
+-d, --description <text>
+--clear-description
+-t, --tags <comma-separated>
+```
+
+Use placeholders such as `{{container}}` in a command. The in-session picker
+prompts for each value, previews the rendered command, and lets you insert with
+`I` or insert and execute with `X`/`Enter`.
 
 ## Themes
 
@@ -179,4 +215,5 @@ Press `:` and fuzzy-search these commands:
 :export <file>
 :logs
 :theme <name>
+:snippet <query>
 ```

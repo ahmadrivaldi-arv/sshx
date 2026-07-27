@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigService } from '../config/config-service.js';
 import { ConnectionService } from '../config/connection-service.js';
+import { SnippetService } from '../config/snippet-service.js';
 import { BackupService } from './backup-service.js';
 
 let tempDir: string | undefined;
@@ -12,6 +13,7 @@ const createServices = async (): Promise<{
   backup: BackupService;
   config: ConfigService;
   connections: ConnectionService;
+  snippets: SnippetService;
 }> => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-backup-'));
   const config = new ConfigService({
@@ -21,7 +23,8 @@ const createServices = async (): Promise<{
   return {
     backup: new BackupService(config),
     config,
-    connections: new ConnectionService(config)
+    connections: new ConnectionService(config),
+    snippets: new SnippetService(config)
   };
 };
 
@@ -34,7 +37,7 @@ afterEach(async () => {
 
 describe('BackupService', () => {
   it('backs up the full config without password references', async () => {
-    const { backup, config, connections } = await createServices();
+    const { backup, config, connections, snippets } = await createServices();
     const connection = await connections.add({
       name: 'Production',
       host: 'prod.example.com',
@@ -43,7 +46,11 @@ describe('BackupService', () => {
     const current = await config.load();
     current.connections[0] = { ...connection, passwordSecretRef: 'secret:test' };
     current.theme = { ...current.theme, name: 'dracula' };
-    await config.save(current);
+    await snippets.add({ name: 'Uptime', command: 'uptime' });
+    const withSnippet = await config.load();
+    withSnippet.connections = current.connections;
+    withSnippet.theme = current.theme;
+    await config.save(withSnippet);
     const file = path.join(tempDir as string, 'backup.json');
 
     await backup.backup(file);
@@ -51,7 +58,7 @@ describe('BackupService', () => {
 
     expect(parsed).toMatchObject({
       backupVersion: 1,
-      config: { theme: { name: 'dracula' } }
+      config: { theme: { name: 'dracula' }, snippets: [{ name: 'Uptime' }] }
     });
     expect(parsed.config.connections[0].passwordSecretRef).toBeUndefined();
   });
@@ -109,5 +116,36 @@ describe('BackupService', () => {
     await writeFile(file, JSON.stringify({ backupVersion: 999 }), 'utf8');
 
     await expect(backup.validate(file)).rejects.toThrow('Invalid backup');
+  });
+
+  it('restores snippets with overwrite and rename conflict strategies', async () => {
+    const { backup, config, snippets } = await createServices();
+    const current = await snippets.add({ name: 'Deploy', command: './deploy-old.sh' });
+    const sourceConfig = await config.load();
+    sourceConfig.snippets = [{ ...current, command: './deploy-new.sh' }];
+    const file = path.join(tempDir as string, 'snippet-restore.json');
+    await writeFile(
+      file,
+      JSON.stringify({
+        backupVersion: 1,
+        createdAt: new Date().toISOString(),
+        config: sourceConfig
+      }),
+      'utf8'
+    );
+
+    await expect(backup.restore(file, 'overwrite')).resolves.toMatchObject({
+      overwritten: 1
+    });
+    await expect(snippets.get('Deploy')).resolves.toMatchObject({
+      id: current.id,
+      command: './deploy-new.sh'
+    });
+
+    await expect(backup.restore(file, 'rename')).resolves.toMatchObject({ renamed: 1 });
+    await expect(snippets.list()).resolves.toEqual([
+      expect.objectContaining({ name: 'Deploy' }),
+      expect.objectContaining({ name: 'Deploy (2)' })
+    ]);
   });
 });

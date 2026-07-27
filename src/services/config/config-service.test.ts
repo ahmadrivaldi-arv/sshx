@@ -42,7 +42,8 @@ describe('ConfigService', () => {
     const service = new ConfigService({ configDir: tempDir, configFile });
     const config = await service.load();
 
-    expect(config.configVersion).toBe(1);
+    expect(config.configVersion).toBe(2);
+    expect(config.snippets).toEqual([]);
     expect(config.connections[0]?.sshOptions).toEqual({});
     expect(config.connections[0]?.suppressWeakCryptoWarning).toBe(false);
     expect(config.theme).toEqual({
@@ -50,7 +51,31 @@ describe('ConfigService', () => {
       compact: false,
       ascii: false
     });
-    expect(JSON.parse(await readFile(configFile, 'utf8')).configVersion).toBe(1);
+    expect(JSON.parse(await readFile(configFile, 'utf8'))).toMatchObject({
+      configVersion: 2,
+      snippets: []
+    });
+  });
+
+  it('migrates a v1 config by adding snippet storage', async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-config-'));
+    const configFile = path.join(tempDir, 'config.json');
+    await writeFile(
+      configFile,
+      JSON.stringify({
+        configVersion: 1,
+        connections: [],
+        recentConnectionIds: [],
+        theme: { name: 'default', compact: false, ascii: false }
+      }),
+      'utf8'
+    );
+
+    const service = new ConfigService({ configDir: tempDir, configFile });
+    await expect(service.load()).resolves.toMatchObject({
+      configVersion: 2,
+      snippets: []
+    });
   });
 
   it('rejects config versions created by a newer Sshx', async () => {

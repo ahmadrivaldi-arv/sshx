@@ -38,6 +38,8 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - Versioned configuration migration and cross-platform release verification.
 - Export connections to JSON or YAML.
 - Interactive SSH sessions through `node-pty`.
+- Persistent TUI sessions: exiting SSH returns to Sshx instead of closing it.
+- Reusable command snippets with fuzzy search, tags, placeholders, and in-session preview.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
 - Responsive compact layout for small terminals (toggle manually with `c`).
 - Built-in and externally installed themes, custom accent colors, and persistent compact/ASCII preferences.
@@ -60,7 +62,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-1.0.0.tgz
+npm install -g ./ahmdrv-sshx-1.1.0.tgz
 sshx
 ```
 
@@ -129,6 +131,7 @@ sshx import [options]           Import connections from ~/.ssh/config or Sshx JS
 sshx export [options] <file>    Export connections to JSON or YAML
 sshx backup [options] <file>    Back up the full configuration without secrets
 sshx restore [options] <file>   Validate and restore an Sshx backup
+sshx snippet <command>          Add, edit, search, or delete command snippets
 sshx check [options] [target]   Check SSH reachability for one or all connections
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
@@ -238,8 +241,27 @@ sshx restore sshx-backup.json --strategy rename
 ```
 
 Use `--strategy replace` only when the backup should replace the entire current
-vault. Backups include connections, history, and theme preferences, but never
-passwords or password secret references.
+vault. Backups include connections, snippets, history, and theme preferences,
+but never passwords or password secret references.
+
+Manage command snippets:
+
+```bash
+sshx snippet add "Docker logs" \
+  --command 'docker logs -f {{container}}' \
+  --description "Follow a container's logs" \
+  --tags docker,logs
+sshx snippet list
+sshx snippet list --search dlog
+sshx snippet show "Docker logs"
+sshx snippet edit "Docker logs" --command 'docker logs --tail 100 -f {{container}}'
+sshx snippet delete "Docker logs"
+```
+
+After connecting through the TUI, press `Ctrl+G`, then `S` to open the local
+snippet picker. Search and select a snippet, fill any `{{placeholder}}` values,
+then press `I` to insert it without executing or `X`/`Enter` to insert and
+execute. Exiting the SSH session returns to the Sshx connection list.
 
 View logs:
 
@@ -272,6 +294,7 @@ Use the command palette:
 :export connections.yaml
 :logs
 :theme dracula
+:snippet docker
 ```
 
 Available themes are `default`, `minimal`, `mono`, `dracula`, `nord`, `catppuccin`,
@@ -291,7 +314,7 @@ Example:
 
 ```json
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "connections": [
     {
       "id": "uuid",
@@ -313,6 +336,17 @@ Example:
     }
   ],
   "recentConnectionIds": [],
+  "snippets": [
+    {
+      "id": "uuid",
+      "name": "Docker logs",
+      "command": "docker logs -f {{container}}",
+      "description": "Follow a container's logs",
+      "tags": ["docker", "logs"],
+      "createdAt": "2026-07-27T00:00:00.000Z",
+      "updatedAt": "2026-07-27T00:00:00.000Z"
+    }
+  ],
   "theme": {
     "name": "dracula",
     "accentColor": "#bd93f9",
@@ -359,8 +393,8 @@ Pushing a matching version tag runs the release workflow, repeats the checks,
 verifies the package contents, and publishes to npm:
 
 ```bash
-git tag -a v1.0.0 -m "v1.0.0"
-git push origin development v1.0.0
+git tag -a v1.1.0 -m "v1.1.0"
+git push origin main v1.1.0
 ```
 
 The published package includes only `dist`, `scripts`, `README.md`, `COMMANDS.md`,

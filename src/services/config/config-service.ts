@@ -10,6 +10,7 @@ const defaultConfig: AppConfig = {
   configVersion: currentConfigVersion,
   connections: [],
   recentConnectionIds: [],
+  snippets: [],
   theme: {
     name: 'default',
     compact: false,

@@ -2,20 +2,25 @@ import process from 'node:process';
 import pty from 'node-pty';
 import type { SshConnection } from '../../types/connection.js';
 import { AppError } from '../../utils/app-error.js';
+import { SnippetService } from '../config/snippet-service.js';
 import { Logger } from '../logging/logger.js';
+import { SessionSnippetPicker } from './session-snippet-picker.js';
 import { SecretService } from './secret-service.js';
 import { buildSshCommand } from './ssh-command.js';
 
 export class PtySshSession {
   private readonly logger: Logger;
   private readonly secretService: SecretService;
+  private readonly snippetService: SnippetService;
 
   public constructor(
     logger: Logger = new Logger(),
-    secretService: SecretService = new SecretService()
+    secretService: SecretService = new SecretService(),
+    snippetService: SnippetService = new SnippetService()
   ) {
     this.logger = logger;
     this.secretService = secretService;
+    this.snippetService = snippetService;
   }
 
   public async connect(connection: SshConnection): Promise<number> {
@@ -25,6 +30,7 @@ export class PtySshSession {
       : undefined;
     let passwordSent = false;
     let outputBuffer = '';
+    const snippets = await this.snippetService.list();
 
     try {
       process.stdout.write('\x1Bc');
@@ -47,13 +53,66 @@ export class PtySshSession {
           env: process.env
         });
         let settled = false;
+        let prefixPending = false;
+        let picker: SessionSnippetPicker | undefined;
+        let pendingRemoteOutput = '';
 
         const resize = (): void => {
           shell.resize(process.stdout.columns || 80, process.stdout.rows || 24);
         };
 
+        const closePicker = (command?: string, execute = false): void => {
+          picker = undefined;
+          process.stdout.write('\x1B[?1049l');
+          if (pendingRemoteOutput) {
+            process.stdout.write(pendingRemoteOutput);
+            pendingRemoteOutput = '';
+          }
+          if (command !== undefined) shell.write(`${command}${execute ? '\r' : ''}`);
+        };
+
+        const renderPicker = (): void => {
+          if (picker) process.stdout.write(picker.render(process.stdout.columns || 80));
+        };
+
+        const openPicker = (): void => {
+          picker = new SessionSnippetPicker(snippets);
+          process.stdout.write('\x1B[?1049h');
+          renderPicker();
+        };
+
         const onInput = (data: Buffer): void => {
-          shell.write(data.toString());
+          const input = data.toString();
+          if (picker) {
+            const action = picker.handleInput(input);
+            if (action.close) {
+              closePicker(action.command, action.execute ?? false);
+            } else {
+              renderPicker();
+            }
+            return;
+          }
+
+          let remoteInput = '';
+          for (const character of input) {
+            if (prefixPending) {
+              prefixPending = false;
+              if (character.toLowerCase() === 's') {
+                if (remoteInput) shell.write(remoteInput);
+                remoteInput = '';
+                openPicker();
+                continue;
+              }
+              remoteInput += `\x07${character}`;
+              continue;
+            }
+            if (character === '\x07') {
+              prefixPending = true;
+            } else {
+              remoteInput += character;
+            }
+          }
+          if (remoteInput) shell.write(remoteInput);
         };
 
         const cleanup = (): void => {
@@ -61,6 +120,7 @@ export class PtySshSession {
           process.stdin.off('data', onInput);
           process.stdin.setRawMode?.(false);
           process.stdin.pause();
+          if (picker) closePicker();
         };
 
         const finish = (exitCode: number): void => {
@@ -88,7 +148,11 @@ export class PtySshSession {
         process.stdin.resume();
         process.stdin.on('data', onInput);
         shell.onData((data) => {
-          process.stdout.write(data);
+          if (picker) {
+            pendingRemoteOutput = `${pendingRemoteOutput}${data}`.slice(-100_000);
+          } else {
+            process.stdout.write(data);
+          }
 
           if (!password || passwordSent) {
             return;

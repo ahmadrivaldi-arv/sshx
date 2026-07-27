@@ -29,7 +29,7 @@ export const registerBackupCommands = (program: Command, service: BackupService)
     .action(async (file: string, options: BackupOptions): Promise<void> => {
       const backup = await service.backup(file, validateFormat(options.format));
       process.stdout.write(
-        `Backed up ${backup.config.connections.length} connection(s) to ${file}\n`
+        `Backed up ${backup.config.connections.length} connection(s) and ${backup.config.snippets.length} snippet(s) to ${file}\n`
       );
     });
 
@@ -59,7 +59,7 @@ export const registerBackupCommands = (program: Command, service: BackupService)
       if (options.validateOnly) {
         const backup = await service.validate(file, format);
         process.stdout.write(
-          `Valid backup v${backup.backupVersion}: ${backup.config.connections.length} connection(s)\n`
+          `Valid backup v${backup.backupVersion}: ${backup.config.connections.length} connection(s), ${backup.config.snippets.length} snippet(s)\n`
         );
         return;
       }
