@@ -1,6 +1,9 @@
 import type {
+  BulkTagMode,
+  ConnectionHealthStatus,
   ConnectionInput,
   ConnectionListOptions,
+  ConnectionOutcome,
   ConnectionPatch,
   SshConnection
 } from '../../types/connection.js';
@@ -61,14 +64,22 @@ export class ConnectionService {
     ].sort();
   }
 
-  public async add(input: ConnectionInput): Promise<SshConnection> {
+  public async add(
+    input: ConnectionInput,
+    options: { allowEndpointDuplicate?: boolean } = {}
+  ): Promise<SshConnection> {
     const config = await this.configService.load();
     const name = input.name.trim();
+    const duplicate = this.findDuplicateIn(config.connections, input);
 
     if (
-      config.connections.some((connection) => connection.name.toLowerCase() === name.toLowerCase())
+      duplicate &&
+      (!options.allowEndpointDuplicate || duplicate.name.toLowerCase() === name.toLowerCase())
     ) {
-      throw new AppError('CONNECTION_DUPLICATE', `Connection "${name}" already exists`);
+      throw new AppError(
+        'CONNECTION_DUPLICATE',
+        `Connection "${name}" already exists or duplicates "${duplicate.name}"`
+      );
     }
 
     const now = new Date().toISOString();
@@ -90,6 +101,7 @@ export class ConnectionService {
       favorite: input.favorite ?? false,
       sshOptions: input.sshOptions ?? {},
       suppressWeakCryptoWarning: input.suppressWeakCryptoWarning ?? false,
+      connectionCount: 0,
       createdAt: now,
       updatedAt: now
     };
@@ -108,14 +120,16 @@ export class ConnectionService {
     const current = this.getConnectionAt(config.connections, index);
 
     const updated: SshConnection = this.applyPatch(current, patch);
+    const duplicate = this.findDuplicateIn(
+      config.connections.filter((connection) => connection.id !== id),
+      updated
+    );
 
-    if (
-      config.connections.some(
-        (connection) =>
-          connection.id !== id && connection.name.toLowerCase() === updated.name.toLowerCase()
-      )
-    ) {
-      throw new AppError('CONNECTION_DUPLICATE', `Connection "${updated.name}" already exists`);
+    if (duplicate) {
+      throw new AppError(
+        'CONNECTION_DUPLICATE',
+        `Connection "${updated.name}" already exists or duplicates "${duplicate.name}"`
+      );
     }
 
     if (patch.password !== undefined) {
@@ -160,6 +174,9 @@ export class ConnectionService {
     const now = new Date().toISOString();
     const {
       lastConnectedAt: _lastConnectedAt,
+      lastConnectionStatus: _lastConnectionStatus,
+      lastConnectionDurationMs: _lastConnectionDurationMs,
+      connectionCount: _connectionCount,
       passwordSecretRef: _passwordSecretRef,
       ...sourceWithoutRecent
     } = source;
@@ -188,6 +205,7 @@ export class ConnectionService {
       name: duplicateName,
       ...(passwordSecretRef ? { passwordSecretRef } : {}),
       favorite: false,
+      connectionCount: 0,
       createdAt: now,
       updatedAt: now
     };
@@ -209,6 +227,14 @@ export class ConnectionService {
   }
 
   public async markRecent(id: string): Promise<void> {
+    await this.recordConnection(id, 'success');
+  }
+
+  public async recordConnection(
+    id: string,
+    status: ConnectionOutcome,
+    durationMs?: number
+  ): Promise<void> {
     const config = await this.configService.load();
     const index = this.findIndex(config.connections, id);
     const now = new Date().toISOString();
@@ -217,6 +243,11 @@ export class ConnectionService {
     config.connections[index] = {
       ...current,
       lastConnectedAt: now,
+      connectionCount: current.connectionCount + 1,
+      lastConnectionStatus: status,
+      ...(durationMs === undefined
+        ? {}
+        : { lastConnectionDurationMs: Math.max(0, Math.round(durationMs)) }),
       updatedAt: now
     };
     config.recentConnectionIds = [
@@ -225,6 +256,80 @@ export class ConnectionService {
     ].slice(0, maxRecentConnections);
 
     await this.configService.save(config);
+  }
+
+  public async findDuplicate(input: ConnectionInput): Promise<SshConnection | undefined> {
+    const config = await this.configService.load();
+    return this.findDuplicateIn(config.connections, input);
+  }
+
+  public async recordHealth(
+    id: string,
+    healthStatus: ConnectionHealthStatus,
+    lastCheckedAt = new Date().toISOString()
+  ): Promise<SshConnection> {
+    const config = await this.configService.load();
+    const index = this.findIndex(config.connections, id);
+    const current = this.getConnectionAt(config.connections, index);
+    const updated = {
+      ...current,
+      healthStatus,
+      lastCheckedAt,
+      updatedAt: lastCheckedAt
+    };
+    config.connections[index] = updated;
+    await this.configService.save(config);
+    return updated;
+  }
+
+  public async bulkDelete(ids: Iterable<string>): Promise<number> {
+    const idSet = new Set(ids);
+
+    if (idSet.size === 0) {
+      return 0;
+    }
+
+    const config = await this.configService.load();
+    const deleted = config.connections.filter((connection) => idSet.has(connection.id));
+
+    if (deleted.length === 0) {
+      return 0;
+    }
+
+    config.connections = config.connections.filter((connection) => !idSet.has(connection.id));
+    config.recentConnectionIds = config.recentConnectionIds.filter((id) => !idSet.has(id));
+    await this.configService.save(config);
+    await Promise.all(
+      deleted.map((connection) => this.secretService.deletePassword(connection.passwordSecretRef))
+    );
+
+    return deleted.length;
+  }
+
+  public async bulkSetFavorite(ids: Iterable<string>, favorite: boolean): Promise<number> {
+    return this.bulkPatch(ids, (connection) => ({ ...connection, favorite }));
+  }
+
+  public async bulkAssignGroup(ids: Iterable<string>, group?: string): Promise<number> {
+    const normalized = group?.trim();
+    return this.bulkPatch(ids, (connection) => {
+      const updated = { ...connection };
+      if (normalized) updated.group = normalized;
+      else delete updated.group;
+      return updated;
+    });
+  }
+
+  public async bulkAssignTags(
+    ids: Iterable<string>,
+    tags: string[],
+    mode: BulkTagMode = 'replace'
+  ): Promise<number> {
+    const normalized = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+    return this.bulkPatch(ids, (connection) => ({
+      ...connection,
+      tags: mode === 'append' ? [...new Set([...connection.tags, ...normalized])] : normalized
+    }));
   }
 
   public async getRecent(): Promise<SshConnection[]> {
@@ -254,6 +359,54 @@ export class ConnectionService {
     }
 
     return connection;
+  }
+
+  private findDuplicateIn(
+    connections: SshConnection[],
+    input: Pick<ConnectionInput, 'name' | 'host' | 'port' | 'username'>
+  ): SshConnection | undefined {
+    const name = input.name.trim().toLowerCase();
+    const host = input.host.trim().toLowerCase();
+    const username = input.username.trim().toLowerCase();
+    const port = input.port ?? 22;
+
+    return connections.find(
+      (connection) =>
+        connection.name.toLowerCase() === name ||
+        (connection.host.toLowerCase() === host &&
+          connection.username.toLowerCase() === username &&
+          connection.port === port)
+    );
+  }
+
+  private async bulkPatch(
+    ids: Iterable<string>,
+    apply: (connection: SshConnection) => SshConnection
+  ): Promise<number> {
+    const idSet = new Set(ids);
+
+    if (idSet.size === 0) {
+      return 0;
+    }
+
+    const config = await this.configService.load();
+    const now = new Date().toISOString();
+    let changed = 0;
+
+    config.connections = config.connections.map((connection) => {
+      if (!idSet.has(connection.id)) {
+        return connection;
+      }
+
+      changed += 1;
+      return { ...apply(connection), updatedAt: now };
+    });
+
+    if (changed > 0) {
+      await this.configService.save(config);
+    }
+
+    return changed;
   }
 
   private applyPatch(current: SshConnection, patch: ConnectionPatch): SshConnection {

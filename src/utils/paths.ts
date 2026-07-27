@@ -2,33 +2,56 @@ import os from 'node:os';
 import path from 'node:path';
 import type { ConfigPaths } from '../types/config.js';
 
-export const expandHome = (value: string): string => {
+export const expandHome = (value: string, homeDirectory = os.homedir()): string => {
   if (value === '~') {
-    return os.homedir();
+    return homeDirectory;
   }
 
   if (value.startsWith('~/')) {
-    return path.join(os.homedir(), value.slice(2));
+    return path.join(homeDirectory, value.slice(2));
   }
 
   if (value.startsWith('~\\')) {
-    return path.join(os.homedir(), value.slice(2));
+    return path.join(homeDirectory, value.slice(2));
   }
 
   return value;
 };
 
-export const createDefaultConfigPaths = (): ConfigPaths => {
+interface ConfigPathEnvironment {
+  XDG_CONFIG_HOME?: string | undefined;
+  LOCALAPPDATA?: string | undefined;
+}
+
+interface ConfigPathOptions {
+  platform: NodeJS.Platform;
+  homeDirectory: string;
+  environment?: ConfigPathEnvironment;
+}
+
+export const createConfigPaths = ({
+  platform,
+  homeDirectory,
+  environment = {}
+}: ConfigPathOptions): ConfigPaths => {
+  const pathApi = platform === 'win32' ? path.win32 : path.posix;
   const configBase =
-    process.platform === 'win32'
-      ? (process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'))
-      : process.platform === 'linux'
-        ? (process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'))
-        : path.join(os.homedir(), '.config');
-  const configDir = path.join(configBase, 'sshx');
+    platform === 'win32'
+      ? (environment.LOCALAPPDATA ?? pathApi.join(homeDirectory, 'AppData', 'Local'))
+      : platform === 'linux'
+        ? (environment.XDG_CONFIG_HOME ?? pathApi.join(homeDirectory, '.config'))
+        : pathApi.join(homeDirectory, '.config');
+  const configDir = pathApi.join(configBase, 'sshx');
 
   return {
     configDir,
-    configFile: path.join(configDir, 'config.json')
+    configFile: pathApi.join(configDir, 'config.json')
   };
 };
+
+export const createDefaultConfigPaths = (): ConfigPaths =>
+  createConfigPaths({
+    platform: process.platform,
+    homeDirectory: os.homedir(),
+    environment: process.env
+  });

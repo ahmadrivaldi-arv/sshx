@@ -20,8 +20,13 @@ export const registerConnectCommand = (
         throw new Error(`Connection "${target}" was not found`);
       }
 
-      await connectionService.markRecent(connection.id);
+      const startedAt = Date.now();
       const exitCode = await session.connect(connection);
+      await connectionService.recordConnection(
+        connection.id,
+        exitCode === 0 ? 'success' : 'failed',
+        Date.now() - startedAt
+      );
       process.exitCode = exitCode;
     });
 };

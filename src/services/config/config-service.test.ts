@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,7 +14,7 @@ afterEach(async () => {
 });
 
 describe('ConfigService', () => {
-  it('adds v0.4 defaults when loading an older connection', async () => {
+  it('migrates and persists a pre-v1 config with current defaults', async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-config-'));
     const configFile = path.join(tempDir, 'config.json');
 
@@ -42,7 +42,32 @@ describe('ConfigService', () => {
     const service = new ConfigService({ configDir: tempDir, configFile });
     const config = await service.load();
 
+    expect(config.configVersion).toBe(1);
     expect(config.connections[0]?.sshOptions).toEqual({});
     expect(config.connections[0]?.suppressWeakCryptoWarning).toBe(false);
+    expect(config.theme).toEqual({
+      name: 'default',
+      compact: false,
+      ascii: false
+    });
+    expect(JSON.parse(await readFile(configFile, 'utf8')).configVersion).toBe(1);
+  });
+
+  it('rejects config versions created by a newer Sshx', async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-config-'));
+    const configFile = path.join(tempDir, 'config.json');
+    await writeFile(
+      configFile,
+      JSON.stringify({
+        configVersion: 99,
+        connections: [],
+        recentConnectionIds: [],
+        theme: { name: 'default', compact: false, ascii: false }
+      }),
+      'utf8'
+    );
+
+    const service = new ConfigService({ configDir: tempDir, configFile });
+    await expect(service.load()).rejects.toThrow('newer than supported');
   });
 });

@@ -8,17 +8,26 @@ import { SearchBar } from '../components/SearchBar.js';
 import { useConnections } from '../hooks/useConnections.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
+import {
+  matchPaletteCommands,
+  parsePaletteInput,
+  type ExternalPaletteCommand
+} from '../services/palette/command-palette.js';
+import type { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
 import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
+import { useTheme } from '../themes/ThemeContext.js';
+import { getThemeGlyphs } from '../themes/themes.js';
 import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/connection.js';
-
-const ACCENT_COLOR = '#f97316';
 
 interface MainScreenProps {
   connectionService: ConnectionService;
+  healthService: ConnectionHealthService;
+  onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>;
   onConnect: (connection: SshConnection) => void;
 }
 
-type ScreenMode = 'browse' | 'search' | 'add' | 'edit' | 'delete-confirm';
+type ScreenMode =
+  'browse' | 'search' | 'add' | 'edit' | 'delete-confirm' | 'bulk-group' | 'bulk-tags' | 'palette';
 
 interface FormState {
   name: string;
@@ -45,7 +54,7 @@ const fields: FormField[] = [
   { key: 'name', label: 'Name', required: true },
   { key: 'host', label: 'Host', required: true },
   { key: 'username', label: 'Username', required: true },
-  { key: 'port', label: 'Port', required: true, hint: '1–65535' },
+  { key: 'port', label: 'Port', required: true, hint: '1-65535' },
   {
     key: 'password',
     label: 'Password',
@@ -160,25 +169,36 @@ const toConnectionPatch = (form: FormState): ConnectionPatch => ({
 
 export const MainScreen = ({
   connectionService,
+  healthService,
+  onPaletteCommand,
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
+  const theme = useTheme();
+  const glyphs = getThemeGlyphs(theme.ascii);
   const { columns, rows } = useTerminalSize();
-  const [forceCompact, setForceCompact] = useState(false);
+  const [compactOverride, setCompactOverride] = useState<boolean>();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ScreenMode>('browse');
   const [message, setMessage] = useState('');
   const [form, setForm] = useState<FormState>(emptyForm);
   const [fieldIndex, setFieldIndex] = useState(0);
   const [editingId, setEditingId] = useState<string>();
-  const [deleteTarget, setDeleteTarget] = useState<SshConnection>();
+  const [deleteTargets, setDeleteTargets] = useState<SshConnection[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkValue, setBulkValue] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteIndex, setPaletteIndex] = useState(0);
   const options = useMemo(() => ({ search: query }), [query]);
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
+  const paletteMatches = useMemo(() => matchPaletteCommands(paletteQuery), [paletteQuery]);
   const selectedConnection = visibleConnections[selectedIndex];
-  const compact = forceCompact || columns < 100 || rows < 24;
+  const responsiveCompact = columns < 100 || rows < 24;
+  const compact = responsiveCompact || (compactOverride ?? theme.compact);
   const maxVisible = Math.max(Math.floor((rows - (compact ? 11 : 8)) / 2), 1);
 
   useEffect(() => {
@@ -190,7 +210,10 @@ export const MainScreen = ({
     setForm(emptyForm);
     setFieldIndex(0);
     setEditingId(undefined);
-    setDeleteTarget(undefined);
+    setDeleteTargets([]);
+    setBulkValue('');
+    setPaletteQuery('');
+    setPaletteIndex(0);
     setSaving(false);
   };
 
@@ -199,6 +222,23 @@ export const MainScreen = ({
       onConnect(selectedConnection);
       app.exit();
     }
+  };
+
+  const checkConnections = (targets: SshConnection[]): void => {
+    if (checking || targets.length === 0) return;
+    setChecking(true);
+    setMessage(`Checking ${targets.length} connection${targets.length === 1 ? '' : 's'}...`);
+    void healthService
+      .checkMany(targets)
+      .then(async (results) => {
+        const online = results.filter(({ status }) => status === 'online').length;
+        setMessage(`Health check complete: ${online}/${results.length} online`);
+        await reload(options);
+      })
+      .catch((caughtError: unknown) => {
+        setMessage(caughtError instanceof Error ? caughtError.message : 'Health check failed');
+      })
+      .finally(() => setChecking(false));
   };
 
   const moveField = (delta: number): void => {
@@ -263,18 +303,18 @@ export const MainScreen = ({
   };
 
   const deleteConnection = (): void => {
-    if (!deleteTarget || saving) return;
+    if (deleteTargets.length === 0 || saving) return;
 
     setSaving(true);
     setMessage('');
 
     void connectionService
-      .delete(deleteTarget.id)
-      .then(async () => {
-        const deletedName = deleteTarget.name;
+      .bulkDelete(deleteTargets.map(({ id }) => id))
+      .then(async (count) => {
         resetMode();
         setQuery('');
-        setMessage(`Deleted ${deletedName}`);
+        setSelectedIds(new Set());
+        setMessage(`Deleted ${count} connection${count === 1 ? '' : 's'}`);
         await reload({});
       })
       .catch((caughtError: unknown) => {
@@ -323,6 +363,64 @@ export const MainScreen = ({
       return;
     }
 
+    if (mode === 'palette') {
+      if (key.downArrow) {
+        setPaletteIndex((current) => Math.min(current + 1, Math.max(paletteMatches.length - 1, 0)));
+      } else if (key.upArrow) {
+        setPaletteIndex((current) => Math.max(current - 1, 0));
+      } else if (key.backspace || key.delete) {
+        setPaletteQuery((current) => current.slice(0, -1));
+        setPaletteIndex(0);
+      } else if (key.return) {
+        const parsed = parsePaletteInput(paletteQuery);
+        const command = parsed.command ?? paletteMatches[paletteIndex]?.name;
+
+        if (!command) {
+          setMessage('No matching command');
+          return;
+        }
+
+        if (command === 'add') {
+          setMode('add');
+          setForm(emptyForm);
+          setFieldIndex(0);
+          setMessage('');
+        } else if (command === 'edit' && selectedConnection) {
+          setMode('edit');
+          setEditingId(selectedConnection.id);
+          setForm(createEditForm(selectedConnection));
+          setFieldIndex(0);
+          setMessage('');
+        } else if (command === 'delete' && selectedConnection) {
+          setDeleteTargets(
+            selectedIds.size > 0
+              ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+              : [selectedConnection]
+          );
+          setMode('delete-confirm');
+          setMessage('');
+        } else if (command === 'edit' || command === 'delete') {
+          setMessage('Select a connection first');
+        } else {
+          setSaving(true);
+          void onPaletteCommand(command, parsed.args)
+            .then(async (result) => {
+              resetMode();
+              setMessage(result);
+              await reload({});
+            })
+            .catch((caughtError: unknown) => {
+              setSaving(false);
+              setMessage(caughtError instanceof Error ? caughtError.message : 'Command failed');
+            });
+        }
+      } else if (input && !key.ctrl && !key.meta) {
+        setPaletteQuery((current) => `${current}${input}`);
+        setPaletteIndex(0);
+      }
+      return;
+    }
+
     if (mode === 'add' || mode === 'edit') {
       const field = fields[fieldIndex];
 
@@ -358,6 +456,41 @@ export const MainScreen = ({
       return;
     }
 
+    if (mode === 'bulk-group' || mode === 'bulk-tags') {
+      if (key.return) {
+        const ids =
+          selectedIds.size > 0
+            ? [...selectedIds]
+            : selectedConnection
+              ? [selectedConnection.id]
+              : [];
+        const mutation =
+          mode === 'bulk-group'
+            ? connectionService.bulkAssignGroup(ids, bulkValue || undefined)
+            : connectionService.bulkAssignTags(ids, parseTags(bulkValue), 'replace');
+
+        setSaving(true);
+        void mutation
+          .then(async (count) => {
+            const action = mode === 'bulk-group' ? 'group' : 'tags';
+            resetMode();
+            setMessage(`Updated ${action} for ${count} connection${count === 1 ? '' : 's'}`);
+            await reload(options);
+          })
+          .catch((caughtError: unknown) => {
+            setSaving(false);
+            setMessage(
+              caughtError instanceof Error ? caughtError.message : 'Failed to update connections'
+            );
+          });
+      } else if (key.backspace || key.delete) {
+        setBulkValue((current) => current.slice(0, -1));
+      } else if (input && !key.ctrl && !key.meta) {
+        setBulkValue((current) => `${current}${input}`);
+      }
+      return;
+    }
+
     if (mode === 'delete-confirm') {
       if (input.toLowerCase() === 'y') {
         deleteConnection();
@@ -374,6 +507,11 @@ export const MainScreen = ({
       setMode('search');
       setQuery('');
       setMessage('');
+    } else if (input === ':') {
+      setMode('palette');
+      setPaletteQuery('');
+      setPaletteIndex(0);
+      setMessage('');
     } else if (input === 'a') {
       setMode('add');
       setForm(emptyForm);
@@ -386,16 +524,24 @@ export const MainScreen = ({
       setFieldIndex(0);
       setMessage('');
     } else if (input === 'd' && selectedConnection) {
-      setDeleteTarget(selectedConnection);
+      setDeleteTargets(
+        selectedIds.size > 0
+          ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+          : [selectedConnection]
+      );
       setMode('delete-confirm');
       setMessage('');
     } else if (input === 'f' && selectedConnection) {
-      void connectionService
-        .toggleFavorite(selectedConnection.id)
-        .then(async (connection) => {
+      const selected = selectedIds.size > 0 ? [...selectedIds] : [selectedConnection.id];
+      const mutation =
+        selectedIds.size > 0
+          ? connectionService.bulkSetFavorite(selected, true)
+          : connectionService.toggleFavorite(selectedConnection.id);
+      void mutation
+        .then(async () => {
           const nextConnections = await reload(options);
           const nextItems = getConnectionTreeItems(nextConnections);
-          const nextIndex = nextItems.findIndex((item) => item.id === connection.id);
+          const nextIndex = nextItems.findIndex((item) => item.id === selectedConnection.id);
 
           if (nextIndex >= 0) setSelectedIndex(nextIndex);
         })
@@ -404,9 +550,32 @@ export const MainScreen = ({
             caughtError instanceof Error ? caughtError.message : 'Failed to update connection'
           );
         });
+    } else if (input === ' ' && selectedConnection) {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        if (next.has(selectedConnection.id)) next.delete(selectedConnection.id);
+        else next.add(selectedConnection.id);
+        return next;
+      });
+    } else if ((input === 'g' || input === 't') && selectedConnection) {
+      setMode(input === 'g' ? 'bulk-group' : 'bulk-tags');
+      setBulkValue('');
+      setMessage('');
+    } else if (input === 'h' && selectedConnection) {
+      const targets =
+        selectedIds.size > 0
+          ? visibleConnections.filter(({ id }) => selectedIds.has(id))
+          : [selectedConnection];
+      checkConnections(targets);
+    } else if (input === 'H') {
+      checkConnections(visibleConnections);
     } else if (input === 'c') {
-      setForceCompact((current) => !current);
-      setMessage(forceCompact ? 'Automatic layout enabled' : 'Compact layout enabled');
+      if (responsiveCompact) {
+        setMessage('Compact layout is required at this terminal size');
+      } else {
+        setCompactOverride(!compact);
+        setMessage(compact ? 'Expanded layout enabled' : 'Compact layout enabled');
+      }
     } else if (input === 'r') {
       void reload(options);
     } else if (key.downArrow || input === 'j') {
@@ -422,44 +591,61 @@ export const MainScreen = ({
 
   const subtitle =
     mode === 'browse'
-      ? `${connections.length} connection${connections.length === 1 ? '' : 's'}`
+      ? `${theme.name} ${glyphs.separator} ${connections.length} connection${
+          connections.length === 1 ? '' : 's'
+        }`
       : mode === 'search'
-        ? `search • ${connections.length} found`
+        ? `search ${glyphs.separator} ${connections.length} found`
         : mode === 'delete-confirm'
           ? 'confirm delete'
-          : mode;
+          : mode === 'bulk-group'
+            ? 'assign group'
+            : mode === 'bulk-tags'
+              ? 'assign tags'
+              : mode === 'palette'
+                ? 'command palette'
+                : mode;
 
   const footerText =
     mode === 'add' || mode === 'edit'
       ? compact
-        ? '↑↓ field  ^U clear  ⏎ next  ^S save  esc cancel'
-        : '↑↓/tab field  •  ctrl+u clear  •  ⏎ next  •  ctrl+s save  •  esc cancel'
+        ? `${glyphs.up}${glyphs.down} field  ^U clear  ${glyphs.enter} next  ^S save  esc cancel`
+        : `${glyphs.up}${glyphs.down}/tab field  ${glyphs.separator}  ctrl+u clear  ${glyphs.separator}  ${glyphs.enter} next  ${glyphs.separator}  ctrl+s save  ${glyphs.separator}  esc cancel`
       : mode === 'delete-confirm'
-        ? 'y confirm  •  n/esc cancel'
-        : mode === 'search'
-          ? '↑↓ select  •  ⏎ connect  •  esc clear/back'
-          : compact
-            ? '⏎ connect  / search  a add  e edit  d delete  q quit'
-            : '⏎ connect  •  / search  •  a add  •  e edit  •  f fav  •  d delete  •  c compact  •  q quit';
+        ? `y confirm  ${glyphs.separator}  n/esc cancel`
+        : mode === 'bulk-group' || mode === 'bulk-tags'
+          ? `${glyphs.enter} apply  ${glyphs.separator}  esc cancel`
+          : mode === 'palette'
+            ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} run  ${glyphs.separator}  esc cancel`
+            : mode === 'search'
+              ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
+              : compact
+                ? `${glyphs.enter} connect  : commands  space select  h check  q quit`
+                : `${glyphs.enter} connect  ${glyphs.separator}  : commands  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
   return (
     <Frame
       title={
-        <Text color={ACCENT_COLOR} bold>
-          ✦ sshx
-          <Text color="gray" dimColor>
+        <Text color={theme.accent} bold>
+          {theme.decorated ? `${glyphs.brand} ` : ''}
+          sshx
+          <Text color={theme.muted} dimColor>
             {' '}
             v{packageJson.version}
           </Text>
         </Text>
       }
-      subtitle={!compact ? <Text color="gray">{subtitle}</Text> : undefined}
+      subtitle={!compact ? <Text color={theme.muted}>{subtitle}</Text> : undefined}
       footer={
         <Box flexDirection="column" width="100%">
-          <Text color="gray">{footerText}</Text>
-          {message ? <Text color="yellow">⚠ {message}</Text> : null}
+          <Text color={theme.muted}>{footerText}</Text>
+          {message ? (
+            <Text color={theme.warning}>
+              {glyphs.warning} {message}
+            </Text>
+          ) : null}
         </Box>
       }
       compact={compact}
@@ -468,11 +654,11 @@ export const MainScreen = ({
       {mode === 'add' || mode === 'edit' ? (
         <Box flexDirection="column" overflow="hidden">
           <Box justifyContent="space-between" marginBottom={compact ? 0 : 1}>
-            <Text color={ACCENT_COLOR} bold>
+            <Text color={theme.accent} bold>
               {mode === 'add' ? 'Add Connection' : 'Edit Connection'}
-              {saving ? ' — saving…' : ''}
+              {saving ? ` ${glyphs.empty} saving${glyphs.ellipsis}` : ''}
             </Text>
-            <Text color="gray">
+            <Text color={theme.muted}>
               {fieldIndex + 1}/{fields.length}
             </Text>
           </Box>
@@ -485,18 +671,18 @@ export const MainScreen = ({
             return (
               <Box key={field.key} flexDirection="column" marginBottom={compact ? 0 : 1}>
                 <Box>
-                  <Text color={active ? ACCENT_COLOR : 'gray'} bold={active}>
-                    {active ? '❯ ' : '  '}
+                  <Text color={active ? theme.accent : theme.muted} bold={active}>
+                    {active ? `${glyphs.cursor} ` : '  '}
                     {field.label.padEnd(compact ? 0 : 18)}
                     {compact ? ': ' : ''}
                   </Text>
-                  <Text {...(active ? { color: ACCENT_COLOR } : {})} dimColor={!active}>
-                    {displayValue || (field.required ? '(required)' : '—')}
-                    {active ? '▊' : ''}
+                  <Text color={active ? theme.accent : theme.text} dimColor={!active}>
+                    {displayValue || (field.required ? '(required)' : glyphs.empty)}
+                    {active ? glyphs.inputCursor : ''}
                   </Text>
                 </Box>
                 {active && field.hint ? (
-                  <Text color="gray" dimColor>
+                  <Text color={theme.muted} dimColor>
                     {'  '}
                     {field.hint}
                   </Text>
@@ -505,34 +691,87 @@ export const MainScreen = ({
             );
           })}
         </Box>
+      ) : mode === 'palette' ? (
+        <Box flexDirection="column">
+          <Text color={theme.accent} bold>
+            :{paletteQuery}
+            {glyphs.inputCursor}
+          </Text>
+          {paletteMatches.length === 0 ? (
+            <Text color={theme.muted}>No matching commands</Text>
+          ) : (
+            paletteMatches.slice(0, 7).map((command, index) => (
+              <Box key={command.name} flexDirection="column">
+                <Text
+                  color={index === paletteIndex ? theme.accent : theme.text}
+                  bold={index === paletteIndex}
+                >
+                  {index === paletteIndex ? `${glyphs.cursor} ` : '  '}
+                  {command.usage}
+                </Text>
+                {!compact && index === paletteIndex ? (
+                  <Text color={theme.muted}> {command.description}</Text>
+                ) : null}
+              </Box>
+            ))
+          )}
+        </Box>
+      ) : mode === 'bulk-group' || mode === 'bulk-tags' ? (
+        <Box flexDirection="column">
+          <Text color={theme.accent} bold>
+            {mode === 'bulk-group' ? 'Assign group' : 'Replace tags'}
+          </Text>
+          <Text color={theme.muted}>
+            {selectedIds.size || (selectedConnection ? 1 : 0)} connection(s)
+          </Text>
+          <Text color={theme.text}>
+            {mode === 'bulk-tags' ? 'Comma-separated tags: ' : 'Group (blank clears): '}
+            <Text color={theme.accent}>
+              {bulkValue}
+              {glyphs.inputCursor}
+            </Text>
+          </Text>
+        </Box>
       ) : mode === 'delete-confirm' ? (
         <Box
           flexDirection="column"
-          borderStyle={compact ? undefined : 'round'}
-          borderColor="red"
+          borderStyle={compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'round'}
+          borderColor={theme.danger}
           paddingX={compact ? 0 : 2}
           paddingY={compact ? 0 : 1}
         >
-          <Text color="red" bold>
-            Delete “{deleteTarget?.name}”?
+          <Text color={theme.danger} bold>
+            Delete{' '}
+            {deleteTargets.length === 1
+              ? theme.ascii
+                ? `"${deleteTargets[0]?.name}"`
+                : `“${deleteTargets[0]?.name}”`
+              : `${deleteTargets.length} connections`}
+            ?
           </Text>
-          <Text>
-            {deleteTarget?.username}@{deleteTarget?.host}:{deleteTarget?.port}
+          <Text color={theme.text}>
+            {deleteTargets.length === 1
+              ? `${deleteTargets[0]?.username}@${deleteTargets[0]?.host}:${deleteTargets[0]?.port}`
+              : deleteTargets.map(({ name }) => name).join(', ')}
           </Text>
-          <Text color="red">This permanently removes the connection and stored password.</Text>
-          {saving ? <Text color="yellow">Deleting…</Text> : null}
+          <Text color={theme.danger}>
+            This permanently removes the connection and stored password.
+          </Text>
+          {saving ? <Text color={theme.warning}>Deleting{glyphs.ellipsis}</Text> : null}
         </Box>
       ) : (
         <Box flexDirection={compact ? 'column' : 'row'} flexGrow={1} overflow="hidden">
           <Box
             flexDirection="column"
             width={compact ? '100%' : Math.max(30, Math.min(52, Math.floor(columns * 0.42)))}
-            borderStyle={compact ? undefined : 'single'}
+            borderStyle={
+              compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'single'
+            }
             borderTop={false}
             borderBottom={false}
             borderLeft={false}
             borderRight={!compact}
-            borderColor="gray"
+            borderColor={theme.border}
             paddingRight={compact ? 0 : 2}
             marginRight={compact ? 0 : 2}
             overflow="hidden"
@@ -540,23 +779,25 @@ export const MainScreen = ({
             <SearchBar query={query} active={mode === 'search'} />
             {loading ? (
               <Box flexDirection="column">
-                <Text color={ACCENT_COLOR}>Loading connections…</Text>
-                <Text color="gray" dimColor>
+                <Text color={theme.accent}>Loading connections{glyphs.ellipsis}</Text>
+                <Text color={theme.muted} dimColor>
                   Reading your local SSH vault
                 </Text>
               </Box>
             ) : error ? (
               <Box flexDirection="column">
-                <Text color="red" bold>
+                <Text color={theme.danger} bold>
                   Could not load connections
                 </Text>
-                <Text color="red">{error}</Text>
-                <Text color="gray">Press r to retry.</Text>
+                <Text color={theme.danger}>{error}</Text>
+                <Text color={theme.muted}>Press r to retry.</Text>
               </Box>
             ) : connections.length === 0 && query ? (
               <Box flexDirection="column">
-                <Text color="gray">No matches for “{query}”.</Text>
-                <Text color="gray" dimColor>
+                <Text color={theme.muted}>
+                  No matches for {theme.ascii ? `"${query}"` : `“${query}”`}.
+                </Text>
+                <Text color={theme.muted} dimColor>
                   Backspace to broaden the search, or Esc to clear it.
                 </Text>
               </Box>
@@ -564,6 +805,7 @@ export const MainScreen = ({
               <ConnectionTree
                 connections={connections}
                 selectedIndex={selectedIndex}
+                selectedIds={selectedIds}
                 maxVisible={maxVisible}
                 compact={compact}
               />

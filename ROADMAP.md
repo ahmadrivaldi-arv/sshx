@@ -19,8 +19,8 @@ Focus: make the current TUI more stable, readable, and comfortable across termin
 
 Focus: allow users to customize the look and terminal compatibility.
 
-- Add theme config to `config.json`.
-- Add built-in themes:
+- [x] Add theme config to `config.json`.
+- [x] Add built-in themes:
   - default
   - minimal
   - mono
@@ -28,10 +28,10 @@ Focus: allow users to customize the look and terminal compatibility.
   - nord
   - catppuccin
   - tokyo-night
-- Add custom accent color.
-- Add compact mode.
-- Add ASCII mode for terminals with poor Unicode support.
-- Add theme commands:
+- [x] Add custom accent color.
+- [x] Add compact mode.
+- [x] Add ASCII mode for terminals with poor Unicode support.
+- [x] Add theme commands:
   - `sshx theme list`
   - `sshx theme set <name>`
   - `sshx theme preview <name>`
@@ -40,68 +40,68 @@ Focus: allow users to customize the look and terminal compatibility.
 
 Focus: make Sshx better for managing many connections.
 
-- Add import preview before saving.
-- Add duplicate detection during add/import.
-- Add skip, overwrite, or rename strategy for duplicates.
-- Add bulk actions:
-  - multi-select
-  - delete multiple
-  - favorite multiple
-  - assign group
-  - assign tags
-- Add better recent connection metadata.
+- [x] Add import preview before saving.
+- [x] Add duplicate detection during add/import.
+- [x] Add skip, overwrite, or rename strategy for duplicates.
+- [x] Add bulk actions:
+  - [x] multi-select
+  - [x] delete multiple
+  - [x] favorite multiple
+  - [x] assign group
+  - [x] assign tags
+- [x] Add better recent connection metadata.
 
 ## v0.7.0 - Connection Health
 
 Focus: help users know whether servers are reachable before connecting.
 
-- Add SSH port health check.
-- Add status indicators:
-  - online
-  - unreachable
-  - timeout
-  - auth required
-- Add shortcut to check selected connection.
-- Add bulk health check for visible connections.
-- Store last checked timestamp.
+- [x] Add SSH port health check.
+- [x] Add status indicators:
+  - [x] online
+  - [x] unreachable
+  - [x] timeout
+  - [x] auth required
+- [x] Add shortcut to check selected connection.
+- [x] Add bulk health check for visible connections.
+- [x] Store last checked timestamp.
 
 ## v0.8.0 - Command Palette
 
 Focus: make Sshx faster for keyboard-heavy users.
 
-- Add command palette with `:`.
-- Support commands:
-  - `:add`
-  - `:edit`
-  - `:delete`
-  - `:import`
-  - `:export`
-  - `:logs`
-  - `:theme`
-- Add fuzzy command matching.
-- Add command hints in footer.
+- [x] Add command palette with `:`.
+- [x] Support commands:
+  - [x] `:add`
+  - [x] `:edit`
+  - [x] `:delete`
+  - [x] `:import`
+  - [x] `:export`
+  - [x] `:logs`
+  - [x] `:theme`
+- [x] Add fuzzy command matching.
+- [x] Add command hints in footer.
 
 ## v0.9.0 - Backup & Restore
 
 Focus: safer migration and recovery.
 
-- Add `sshx backup`.
-- Add `sshx restore`.
-- Export full config without secrets.
-- Validate backup before restore.
-- Add restore conflict strategy.
+- [x] Add `sshx backup`.
+- [x] Add `sshx restore`.
+- [x] Export full config without secrets.
+- [x] Validate backup before restore.
+- [x] Add restore conflict strategy.
 
 ## v1.0.0 - Stable Release
 
 Focus: production-ready baseline.
 
-- Stable config schema.
-- Migration support for config versions.
-- Complete command docs.
-- Better error messages.
-- Cross-platform test coverage.
-- Release workflow.
-- Package verification before publish.
+- [x] Stable config schema.
+- [x] Migration support for config versions.
+- [x] Complete command docs.
+- [x] Better error messages.
+- [x] Cross-platform test coverage.
+- [x] Release workflow.
+- [x] Package verification before publish.
 
 ## Post-v1.0
 

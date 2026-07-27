@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-
-const ACCENT_COLOR = '#f97316'; // Modern Orange Accent
+import { useTheme } from '../themes/ThemeContext.js';
+import { getThemeGlyphs } from '../themes/themes.js';
 
 interface SearchBarProps {
   query: string;
@@ -9,12 +9,15 @@ interface SearchBarProps {
 }
 
 export const SearchBar = ({ query, active }: SearchBarProps): React.ReactElement => {
+  const theme = useTheme();
+  const glyphs = getThemeGlyphs(theme.ascii);
+
   if (!active && !query) {
     return (
       <Box marginBottom={1}>
-        <Text color="gray" dimColor>
+        <Text color={theme.muted} dimColor>
           Press{' '}
-          <Text bold color={ACCENT_COLOR}>
+          <Text bold color={theme.accent}>
             /
           </Text>{' '}
           to search connections...
@@ -25,19 +28,19 @@ export const SearchBar = ({ query, active }: SearchBarProps): React.ReactElement
 
   return (
     <Box marginBottom={1}>
-      <Text color={active ? ACCENT_COLOR : 'gray'} bold>
-        {active ? '❯ Search: ' : '  Search: '}
+      <Text color={active ? theme.accent : theme.muted} bold>
+        {active ? `${glyphs.cursor} Search: ` : '  Search: '}
       </Text>
       {query ? (
-        <Text>{query}</Text>
+        <Text color={theme.text}>{query}</Text>
       ) : (
-        <Text color="gray" dimColor>
+        <Text color={theme.muted} dimColor>
           type to filter...
         </Text>
       )}
       {active ? (
-        <Text color={ACCENT_COLOR} bold>
-          ▊
+        <Text color={theme.accent} bold>
+          {glyphs.inputCursor}
         </Text>
       ) : null}
     </Box>
