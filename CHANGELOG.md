@@ -5,6 +5,34 @@ All notable changes to Sshx are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-27
+
+### Added
+
+- Native full-screen SSH sessions that preserve normal terminal cursor, input, and application behavior.
+- Persistent TUI navigation that returns to the connection list when SSH exits.
+- Versioned command snippets with CLI CRUD, tag filters, and fuzzy search.
+- A TUI snippet manager with search, add, edit, and delete workflows.
+- Persistent configurable keymaps for the TUI manager and in-session picker.
+- `:snippet <query>` in the TUI command palette.
+- A local in-session picker with configurable `F2`, `Ctrl+B`, `Ctrl+G`, or `Ctrl+]` bindings.
+- Placeholder prompts for values such as `{{container}}`.
+- Preview-first insertion with separate insert and insert-and-execute actions.
+- Snippet support in full backup and restore conflict strategies.
+
+### Changed
+
+- Configuration schema v2 adds snippet storage and automatically migrates v1 config.
+- The in-session snippet picker now uses a clearer full-screen layout with scrolling,
+  selected-snippet details, responsive narrow-terminal rendering, and adaptive ANSI colors.
+- The default, minimal, and mono themes now inherit terminal foreground and background colors
+  for automatic light and dark appearance compatibility.
+
+### Security
+
+- Snippet previews escape terminal control characters and commands are restricted to one line.
+- In-session snippets are inserted without execution by default.
+
 ## [1.0.0] - 2026-07-26
 
 ### Added
@@ -109,6 +137,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Placed OpenSSH options before the destination so they are parsed consistently across platforms.
 - Preserved additional per-host OpenSSH directives when importing SSH config files.
 
+[1.1.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.7.0...v0.8.0

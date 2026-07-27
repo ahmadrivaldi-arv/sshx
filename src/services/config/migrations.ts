@@ -1,6 +1,6 @@
 import { AppError } from '../../utils/app-error.js';
 
-export const currentConfigVersion = 1 as const;
+export const currentConfigVersion = 2 as const;
 
 export interface ConfigMigrationResult {
   data: unknown;
@@ -15,9 +15,13 @@ export const migrateConfigData = (data: unknown): ConfigMigrationResult => {
   const record = data as Record<string, unknown>;
   const version = record.configVersion;
 
-  if (version === undefined || version === 0) {
+  if (version === undefined || version === 0 || version === 1) {
     return {
-      data: { ...record, configVersion: currentConfigVersion },
+      data: {
+        ...record,
+        configVersion: currentConfigVersion,
+        snippets: Array.isArray(record.snippets) ? record.snippets : []
+      },
       migrated: true
     };
   }

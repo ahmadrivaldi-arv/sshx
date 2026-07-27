@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { snippetPickerBindings } from '../../types/keymap.js';
 
 export const connectionColorSchema = z.enum([
   'red',
@@ -58,10 +59,65 @@ export const sshConnectionSchema = z.object({
   lastCheckedAt: z.string().datetime().optional()
 });
 
+const hasNoTerminalControls = (value: string): boolean =>
+  [...value].every((character) => {
+    const code = character.charCodeAt(0);
+    return code >= 32 && code !== 127;
+  });
+
+export const commandSnippetSchema = z.object({
+  id: z.string().uuid(),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(hasNoTerminalControls, 'Snippet name must not contain terminal control characters'),
+  command: z
+    .string()
+    .min(1)
+    .refine(hasNoTerminalControls, 'Snippet command must be a single safe line'),
+  description: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(
+      hasNoTerminalControls,
+      'Snippet description must not contain terminal control characters'
+    )
+    .optional(),
+  tags: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .refine(hasNoTerminalControls, 'Snippet tags must not contain terminal control characters')
+    )
+    .default([]),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+});
+
+export const keymapConfigSchema = z.object({
+  snippetPicker: z
+    .array(z.enum(snippetPickerBindings))
+    .min(1, 'Configure at least one snippet picker shortcut')
+    .default(['f2', 'ctrl-b-s']),
+  snippetManager: z
+    .string()
+    .regex(/^[a-z]$/, 'Snippet manager shortcut must be one lowercase letter')
+    .default('s')
+});
+
 export const appConfigSchema = z.object({
-  configVersion: z.literal(1),
+  configVersion: z.literal(2),
   connections: z.array(sshConnectionSchema).default([]),
   recentConnectionIds: z.array(z.string().uuid()).default([]),
+  snippets: z.array(commandSnippetSchema).default([]),
+  keymap: keymapConfigSchema.default({
+    snippetPicker: ['f2', 'ctrl-b-s'],
+    snippetManager: 's'
+  }),
   theme: themeConfigSchema.default({
     name: 'default',
     compact: false,

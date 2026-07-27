@@ -5,7 +5,8 @@ export const paletteCommandNames = [
   'import',
   'export',
   'logs',
-  'theme'
+  'theme',
+  'snippet'
 ] as const;
 
 export type PaletteCommandName = (typeof paletteCommandNames)[number];
@@ -31,7 +32,8 @@ export const paletteCommands: PaletteCommand[] = [
   },
   { name: 'export', description: 'Export connections', usage: ':export <file>' },
   { name: 'logs', description: 'Show the log file path', usage: ':logs' },
-  { name: 'theme', description: 'Apply a theme', usage: ':theme <name>' }
+  { name: 'theme', description: 'Apply a theme', usage: ':theme <name>' },
+  { name: 'snippet', description: 'Search command snippets', usage: ':snippet <query>' }
 ];
 
 export const fuzzyScore = (query: string, candidate: string): number | undefined => {

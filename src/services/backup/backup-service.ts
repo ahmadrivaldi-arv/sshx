@@ -3,6 +3,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { z } from 'zod';
 import type { SshConnection } from '../../types/connection.js';
+import type { CommandSnippet } from '../../types/snippet.js';
 import { AppError } from '../../utils/app-error.js';
 import { createId } from '../../utils/id.js';
 import { expandHome } from '../../utils/paths.js';
@@ -104,7 +105,7 @@ export class BackupService {
         skipped: 0,
         overwritten: 0,
         renamed: 0,
-        replaced: backup.config.connections.length
+        replaced: backup.config.connections.length + backup.config.snippets.length
       };
     }
 
@@ -159,6 +160,37 @@ export class BackupService {
       else result.added += 1;
     }
 
+    const snippets = [...current.snippets];
+    for (const source of backup.config.snippets) {
+      const duplicateIndex = snippets.findIndex((snippet) =>
+        this.isSnippetDuplicate(snippet, source)
+      );
+      const duplicate = snippets[duplicateIndex];
+
+      if (duplicate && strategy === 'skip') {
+        result.skipped += 1;
+        continue;
+      }
+
+      if (duplicate && strategy === 'overwrite') {
+        snippets[duplicateIndex] = { ...source, id: duplicate.id };
+        result.overwritten += 1;
+        continue;
+      }
+
+      const id = snippets.some((snippet) => snippet.id === source.id) ? createId() : source.id;
+      const name =
+        duplicate && strategy === 'rename'
+          ? this.uniqueName(
+              source.name,
+              snippets.map((snippet) => snippet.name)
+            )
+          : source.name;
+      snippets.push({ ...source, id, name });
+      if (duplicate) result.renamed += 1;
+      else result.added += 1;
+    }
+
     const restoredRecentIds = backup.config.recentConnectionIds
       .map((id) => idMap.get(id))
       .filter((id): id is string => Boolean(id));
@@ -168,6 +200,8 @@ export class BackupService {
       recentConnectionIds: [
         ...new Set([...restoredRecentIds, ...current.recentConnectionIds])
       ].filter((id) => connections.some((connection) => connection.id === id)),
+      snippets,
+      keymap: backup.config.keymap,
       theme: backup.config.theme
     });
 
@@ -191,6 +225,10 @@ export class BackupService {
         left.username.toLowerCase() === right.username.toLowerCase() &&
         left.port === right.port)
     );
+  }
+
+  private isSnippetDuplicate(left: CommandSnippet, right: CommandSnippet): boolean {
+    return left.id === right.id || left.name.toLowerCase() === right.name.toLowerCase();
   }
 
   private uniqueName(name: string, names: string[]): string {

@@ -3,6 +3,20 @@
 Sshx themes can be installed outside the application, shared as a single JSON
 file, and selected without rebuilding Sshx.
 
+## Light and Dark Terminals
+
+The built-in `default`, `minimal`, and `mono` themes inherit the terminal's own
+foreground and background colors. They adapt automatically when the terminal
+switches between light and dark appearances:
+
+```bash
+sshx theme set default
+```
+
+The `dracula`, `nord`, `catppuccin`, and `tokyo-night` themes intentionally use
+their named dark palettes. Custom themes also use explicit colors, so their
+author should state whether they target a light or dark terminal.
+
 ## Install a Theme
 
 Download a theme file and install it:

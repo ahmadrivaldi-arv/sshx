@@ -103,6 +103,21 @@ Focus: production-ready baseline.
 - [x] Release workflow.
 - [x] Package verification before publish.
 
+## v1.1.0 - Persistent Sessions & Command Snippets
+
+Focus: keep users inside Sshx between sessions and make repeatable remote commands easy to reuse.
+
+- [x] Run SSH as a native full-screen session and return to connections when it exits.
+- [x] Add versioned command snippet storage and automatic config migration.
+- [x] Add snippet CRUD, tag filtering, and fuzzy search commands.
+- [x] Add snippet search and CRUD directly inside the TUI.
+- [x] Add persistent configurable keymaps for snippet workflows.
+- [x] Add `:snippet <query>` to the TUI command palette.
+- [x] Add an in-session snippet picker with `F2` and prefix alternatives.
+- [x] Preview snippets before inserting or executing them.
+- [x] Support `{{placeholder}}` values in snippets.
+- [x] Include snippets in backup and restore workflows.
+
 ## Post-v1.0
 
 Larger features should stay outside the v1 baseline until the core vault and SSH manager workflows are stable.

@@ -37,7 +37,11 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - Versioned full-configuration backup and restore without secret references.
 - Versioned configuration migration and cross-platform release verification.
 - Export connections to JSON or YAML.
-- Interactive SSH sessions through `node-pty`.
+- Native full-screen SSH sessions through `node-pty`, with normal terminal cursor and input behavior.
+- Persistent TUI sessions: exiting SSH returns to the connection browser instead of closing Sshx.
+- Reusable command snippets with fuzzy search, tags, placeholders, and in-session preview.
+- A TUI snippet manager for searching, adding, editing, and deleting snippets.
+- Configurable snippet-manager and in-session picker keymaps.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
 - Responsive compact layout for small terminals (toggle manually with `c`).
 - Built-in and externally installed themes, custom accent colors, and persistent compact/ASCII preferences.
@@ -60,7 +64,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-1.0.0.tgz
+npm install -g ./ahmdrv-sshx-1.1.0.tgz
 sshx
 ```
 
@@ -107,6 +111,7 @@ t      replace tags on selected connections
 h      check selected or multi-selected connection health
 H      check all visible connection health
 :      open the fuzzy command palette
+s      open the snippet manager (configurable)
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -129,6 +134,8 @@ sshx import [options]           Import connections from ~/.ssh/config or Sshx JS
 sshx export [options] <file>    Export connections to JSON or YAML
 sshx backup [options] <file>    Back up the full configuration without secrets
 sshx restore [options] <file>   Validate and restore an Sshx backup
+sshx snippet <command>          Add, edit, search, or delete command snippets
+sshx keymap <command>           Show, configure, or reset keyboard shortcuts
 sshx check [options] [target]   Check SSH reachability for one or all connections
 sshx connect <target>           Connect by id or exact name
 sshx ssh <target>               Alias for connect
@@ -238,8 +245,46 @@ sshx restore sshx-backup.json --strategy rename
 ```
 
 Use `--strategy replace` only when the backup should replace the entire current
-vault. Backups include connections, history, and theme preferences, but never
-passwords or password secret references.
+vault. Backups include connections, snippets, history, and theme preferences,
+but never passwords or password secret references.
+
+Manage command snippets:
+
+```bash
+sshx snippet add "Docker logs" \
+  --command 'docker logs -f {{container}}' \
+  --description "Follow a container's logs" \
+  --tags docker,logs
+sshx snippet list
+sshx snippet list --search dlog
+sshx snippet show "Docker logs"
+sshx snippet edit "Docker logs" --command 'docker logs --tail 100 -f {{container}}'
+sshx snippet delete "Docker logs"
+```
+
+Snippets can also be managed entirely inside the TUI. Press `s` from the
+connection browser, or run `:snippet` from the command palette. Inside the
+manager, use `a` to add, `e` to edit, `d` to delete, and `/` to search.
+
+Like Nano or Vim, SSH temporarily takes over the native terminal while Sshx
+remains alive in the background. Press `F2` to open the local snippet picker.
+`Ctrl+B`, then `S` is enabled as a prefix alternative; `Ctrl+G`, then `S` and
+`Ctrl+]`, then `S` are available as configurable bindings. Search and select a snippet, fill any
+`{{placeholder}}` values, then press `I` to insert it without executing or
+`X`/`Enter` to insert and execute. Exiting the remote shell returns to the Sshx
+connection list.
+
+Configure keymaps:
+
+```bash
+sshx keymap
+sshx keymap set snippet-picker f2,ctrl-]-s
+sshx keymap set snippet-manager n
+sshx keymap reset
+```
+
+Supported picker bindings are `f2`, `ctrl-b-s`, `ctrl-g-s`, and `ctrl-]-s`.
+The snippet-manager binding is one unreserved lowercase letter.
 
 View logs:
 
@@ -272,12 +317,17 @@ Use the command palette:
 :export connections.yaml
 :logs
 :theme dracula
+:snippet docker
 ```
 
 Available themes are `default`, `minimal`, `mono`, `dracula`, `nord`, `catppuccin`,
 and `tokyo-night`, plus JSON themes installed in the user theme directory. Theme
 previews do not modify your configuration. See [THEMES.md](THEMES.md) for the
 external theme format and sharing instructions.
+
+`default`, `minimal`, and `mono` inherit the terminal foreground/background, so
+they work with both light and dark terminal appearances. Named palette themes
+such as Dracula and Nord intentionally target dark terminals.
 
 ## Configuration
 
@@ -291,7 +341,7 @@ Example:
 
 ```json
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "connections": [
     {
       "id": "uuid",
@@ -313,6 +363,21 @@ Example:
     }
   ],
   "recentConnectionIds": [],
+  "snippets": [
+    {
+      "id": "uuid",
+      "name": "Docker logs",
+      "command": "docker logs -f {{container}}",
+      "description": "Follow a container's logs",
+      "tags": ["docker", "logs"],
+      "createdAt": "2026-07-27T00:00:00.000Z",
+      "updatedAt": "2026-07-27T00:00:00.000Z"
+    }
+  ],
+  "keymap": {
+    "snippetPicker": ["f2", "ctrl-b-s"],
+    "snippetManager": "s"
+  },
   "theme": {
     "name": "dracula",
     "accentColor": "#bd93f9",
@@ -359,8 +424,8 @@ Pushing a matching version tag runs the release workflow, repeats the checks,
 verifies the package contents, and publishes to npm:
 
 ```bash
-git tag -a v1.0.0 -m "v1.0.0"
-git push origin development v1.0.0
+git tag -a v1.1.0 -m "v1.1.0"
+git push origin main v1.1.0
 ```
 
 The published package includes only `dist`, `scripts`, `README.md`, `COMMANDS.md`,

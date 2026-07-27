@@ -23,6 +23,8 @@ interface MainScreenProps {
   connectionService: ConnectionService;
   healthService: ConnectionHealthService;
   onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>;
+  onOpenSnippets: (query: string) => void;
+  snippetManagerKey: string;
   onConnect: (connection: SshConnection) => void;
 }
 
@@ -171,6 +173,8 @@ export const MainScreen = ({
   connectionService,
   healthService,
   onPaletteCommand,
+  onOpenSnippets,
+  snippetManagerKey,
   onConnect
 }: MainScreenProps): React.ReactElement => {
   const app = useApp();
@@ -380,7 +384,9 @@ export const MainScreen = ({
           return;
         }
 
-        if (command === 'add') {
+        if (command === 'snippet') {
+          onOpenSnippets(parsed.args.join(' '));
+        } else if (command === 'add') {
           setMode('add');
           setForm(emptyForm);
           setFieldIndex(0);
@@ -503,6 +509,8 @@ export const MainScreen = ({
 
     if (input === 'q') {
       app.exit();
+    } else if (input === snippetManagerKey) {
+      onOpenSnippets('');
     } else if (input === '/') {
       setMode('search');
       setQuery('');
@@ -620,8 +628,8 @@ export const MainScreen = ({
             : mode === 'search'
               ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
               : compact
-                ? `${glyphs.enter} connect  : commands  space select  h check  q quit`
-                : `${glyphs.enter} connect  ${glyphs.separator}  : commands  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
+                ? `${glyphs.enter} connect  ${snippetManagerKey} snippets  : commands  q quit`
+                : `${glyphs.enter} connect  ${glyphs.separator}  ${snippetManagerKey} snippets  ${glyphs.separator}  : commands  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 

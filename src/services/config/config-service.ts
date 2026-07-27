@@ -10,6 +10,11 @@ const defaultConfig: AppConfig = {
   configVersion: currentConfigVersion,
   connections: [],
   recentConnectionIds: [],
+  snippets: [],
+  keymap: {
+    snippetPicker: ['f2', 'ctrl-b-s'],
+    snippetManager: 's'
+  },
   theme: {
     name: 'default',
     compact: false,

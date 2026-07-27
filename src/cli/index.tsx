@@ -9,14 +9,18 @@ import { registerConnectCommand } from '../commands/connect-command.js';
 import { registerEditCommand } from '../commands/edit-command.js';
 import { registerExportCommand } from '../commands/export-command.js';
 import { registerImportCommand } from '../commands/import-command.js';
+import { registerKeymapCommand } from '../commands/keymap-command.js';
 import { registerListCommand } from '../commands/list-command.js';
 import { registerLogsCommand } from '../commands/logs-command.js';
 import { registerMutationCommands } from '../commands/mutation-commands.js';
+import { registerSnippetCommand } from '../commands/snippet-command.js';
 import { registerThemeCommand } from '../commands/theme-command.js';
 import { App } from '../layouts/App.js';
 import { BackupService } from '../services/backup/backup-service.js';
 import { ConfigService } from '../services/config/config-service.js';
 import { ConnectionService } from '../services/config/connection-service.js';
+import { KeymapService } from '../services/config/keymap-service.js';
+import { SnippetService } from '../services/config/snippet-service.js';
 import { ThemeService } from '../services/config/theme-service.js';
 import { Logger } from '../services/logging/logger.js';
 import type { ExternalPaletteCommand } from '../services/palette/command-palette.js';
@@ -26,50 +30,51 @@ import { ConnectionHealthService } from '../services/ssh/connection-health-servi
 import { PtySshSession } from '../services/ssh/pty-ssh-session.js';
 import { SecretService } from '../services/ssh/secret-service.js';
 import type { SshConnection } from '../types/connection.js';
-import type { ResolvedTheme } from '../types/theme.js';
 import { handleCliError } from '../utils/error-handler.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 const runTui = async (
   connectionService: ConnectionService,
+  snippetService: SnippetService,
   healthService: ConnectionHealthService,
   session: PtySshSession,
-  theme: ResolvedTheme,
+  themeService: ThemeService,
+  keymapService: KeymapService,
   onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>
 ): Promise<void> => {
   const useAlternateScreen = Boolean(process.stdout.isTTY);
 
-  if (useAlternateScreen) {
-    process.stdout.write('\x1B[?1049h\x1B[2J\x1B[H');
-  }
-
-  let selectedConnection: SshConnection | undefined;
-
-  try {
-    const instance = render(
-      <App
-        connectionService={connectionService}
-        healthService={healthService}
-        onPaletteCommand={onPaletteCommand}
-        theme={theme}
-        onConnect={(connection) => {
-          selectedConnection = connection;
-        }}
-      />
-    );
-
-    try {
-      await instance.waitUntilExit();
-    } finally {
-      instance.clear();
-    }
-  } finally {
+  while (true) {
+    let selectedConnection: SshConnection | undefined;
     if (useAlternateScreen) {
-      process.stdout.write('\x1B[?1049l');
+      process.stdout.write('\x1B[?1049h\x1B[2J\x1B[H');
     }
-  }
+    try {
+      const instance = render(
+        <App
+          connectionService={connectionService}
+          snippetService={snippetService}
+          healthService={healthService}
+          keymap={await keymapService.get()}
+          onPaletteCommand={onPaletteCommand}
+          theme={await themeService.getResolved()}
+          onConnect={(connection) => {
+            selectedConnection = connection;
+          }}
+        />
+      );
+      try {
+        await instance.waitUntilExit();
+      } finally {
+        instance.clear();
+      }
+    } finally {
+      if (useAlternateScreen) {
+        process.stdout.write('\x1B[?1049l');
+      }
+    }
 
-  if (selectedConnection) {
+    if (!selectedConnection) return;
     const startedAt = Date.now();
     const exitCode = await session.connect(selectedConnection);
     await connectionService.recordConnection(
@@ -77,7 +82,6 @@ const runTui = async (
       exitCode === 0 ? 'success' : 'failed',
       Date.now() - startedAt
     );
-    process.exitCode = exitCode;
   }
 };
 
@@ -85,13 +89,15 @@ const main = async (): Promise<void> => {
   const secretService = new SecretService();
   const configService = new ConfigService();
   const connectionService = new ConnectionService(configService, secretService);
+  const snippetService = new SnippetService(configService);
+  const keymapService = new KeymapService(configService);
   const themeService = new ThemeService(configService);
   const logger = new Logger();
   const importService = new ImportService(connectionService);
   const backupService = new BackupService(configService);
   const healthService = new ConnectionHealthService(connectionService);
   const exportService = new ExportService(connectionService);
-  const session = new PtySshSession(logger, secretService);
+  const session = new PtySshSession(logger, secretService, snippetService, keymapService);
   const program = new Command();
   const onPaletteCommand = async (
     command: ExternalPaletteCommand,
@@ -139,9 +145,11 @@ const main = async (): Promise<void> => {
     .action(async (): Promise<void> => {
       await runTui(
         connectionService,
+        snippetService,
         healthService,
         session,
-        await themeService.getResolved(),
+        themeService,
+        keymapService,
         onPaletteCommand
       );
     });
@@ -151,6 +159,8 @@ const main = async (): Promise<void> => {
   registerEditCommand(program, connectionService);
   registerListCommand(program, connectionService);
   registerMutationCommands(program, connectionService);
+  registerKeymapCommand(program, keymapService);
+  registerSnippetCommand(program, snippetService);
   registerImportCommand(program, importService);
   registerCheckCommand(program, connectionService, healthService);
   registerExportCommand(program, exportService);
