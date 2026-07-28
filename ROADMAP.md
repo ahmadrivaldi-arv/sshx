@@ -147,6 +147,23 @@ Focus: make external themes easy to discover, share, install, and maintain like 
 - [ ] Define a community theme repository format and publishing guide.
 - [ ] Add safe preview and validation before installing or updating a remote theme.
 
+## v1.4.0 - Website & Documentation Hub
+
+Focus: introduce Sshx with an accurate, accessible website generated from repository documentation and real product assets.
+
+- [ ] Use a static-first Astro and TypeScript architecture with Starlight for documentation.
+- [ ] Use isolated React islands only for interactions such as the terminal demo, copy buttons, and appearance controls.
+- [ ] Build a responsive product website with automatic light and dark appearance support.
+- [ ] Add clear installation, feature, native SSH, snippet workflow, theme, security, and open-source sections.
+- [ ] Reuse optimized screenshots, GIFs, and videos from the repository instead of fabricated product UI.
+- [ ] Add copyable install commands and direct links to GitHub, npm, releases, issues, and documentation.
+- [ ] Add a safe interactive terminal demonstration that never pretends to establish a real SSH connection.
+- [ ] Add a custom theme gallery with compatibility metadata and install examples such as Monokai.
+- [ ] Add SEO, Open Graph, structured application metadata, sitemap, robots, and a useful not-found page.
+- [ ] Keep website claims and version information synchronized with repository documentation and published releases.
+- [ ] Add GitHub-integrated preview and production deployments with custom-domain support.
+- [ ] Validate responsive layouts, keyboard navigation, reduced motion, accessibility, and production builds.
+
 ## v2.0.0 - TUI Runtime Modernization
 
 Focus: adopt the next major Ink runtime only when the supported Node.js baseline can move forward safely.
