@@ -211,7 +211,7 @@ export const ConnectionDetail = ({
             </Text>
           </Box>
           <Box>
-            <Text color={connection.healthStatus === 'online' ? theme.accent : theme.text}>
+            <Text color={connection.healthStatus === 'online' ? theme.success : theme.text}>
               {healthSummary}
             </Text>
           </Box>

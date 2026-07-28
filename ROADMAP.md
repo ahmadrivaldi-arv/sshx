@@ -118,9 +118,71 @@ Focus: keep users inside Sshx between sessions and make repeatable remote comman
 - [x] Support `{{placeholder}}` values in snippets.
 - [x] Include snippets in backup and restore workflows.
 
-## Post-v1.0
+## v1.2.0 - Modern TUI
 
-Larger features should stay outside the v1 baseline until the core vault and SSH manager workflows are stable.
+Focus: establish a consistent, responsive visual system that feels modern without sacrificing native terminal behavior or accessibility.
+
+- [x] Add semantic design tokens for accent, text, muted, border, success, warning, danger, and selected states.
+- [x] Add `NO_COLOR` support and preserve adaptive light/dark terminal colors.
+- [x] Redesign the main screen as a responsive connection-list and detail split view.
+- [x] Redesign the snippet manager as a list and command-preview split view.
+- [x] Modernize the command palette with grouped actions, recent commands, descriptions, and right-aligned shortcuts.
+- [x] Add a native TUI theme picker so installed themes can be browsed without running a CLI command.
+- [x] Support `Up`/`Down` theme navigation with a temporary live preview that does not immediately persist the selection.
+- [x] Confirm theme selection with `Apply & restart`, `Apply next launch`, and `Cancel` actions; canceling must restore the original theme.
+- [x] Add a reusable key-hint component with consistent styling across screens.
+- [x] Add contextual help with `?` based on the active screen and interaction mode.
+- [x] Add first-run onboarding with SSH config import, manual connection, and documentation actions.
+- [x] Add an About screen with the Sshx wordmark, version, active theme, documentation, repository, npm, license, and update information.
+- [x] Use a large responsive Sshx wordmark only in onboarding and About, with a compact brand mark in space-constrained screens.
+- [x] Add wide, medium, and narrow terminal layouts with graceful single-panel fallback.
+- [x] Add clear, restrained progress indicators and transient status messages for long-running actions.
+- [x] Highlight snippet placeholders and clearly distinguish insert-only from insert-and-execute actions.
+- [x] Add visual regression coverage for common terminal sizes, light/dark appearances, ASCII mode, and `NO_COLOR`.
+
+## v1.3.0 - Theme Ecosystem
+
+Focus: make external themes easy to discover, share, install, and maintain like shell theme ecosystems.
+
+- [ ] Extend theme metadata with author, homepage, appearance, preview, and minimum Sshx version.
+- [ ] Add remote theme installation from a repository or package reference.
+- [ ] Add theme search, update, and update-all commands.
+- [ ] Add explicit light, dark, and adaptive compatibility metadata.
+- [ ] Add optional theme glyph sets with Unicode and ASCII fallbacks.
+- [ ] Define a community theme repository format and publishing guide.
+- [ ] Add safe preview and validation before installing or updating a remote theme.
+
+## v1.4.0 - Website & Documentation Hub
+
+Focus: introduce Sshx with an accurate, accessible website generated from repository documentation and real product assets.
+
+- [ ] Use a static-first Astro and TypeScript architecture with Starlight for documentation.
+- [ ] Use isolated React islands only for interactions such as the terminal demo, copy buttons, and appearance controls.
+- [ ] Build a responsive product website with automatic light and dark appearance support.
+- [ ] Add clear installation, feature, native SSH, snippet workflow, theme, security, and open-source sections.
+- [ ] Reuse optimized screenshots, GIFs, and videos from the repository instead of fabricated product UI.
+- [ ] Add copyable install commands and direct links to GitHub, npm, releases, issues, and documentation.
+- [ ] Add a safe interactive terminal demonstration that never pretends to establish a real SSH connection.
+- [ ] Add a custom theme gallery with compatibility metadata and install examples such as Monokai.
+- [ ] Add SEO, Open Graph, structured application metadata, sitemap, robots, and a useful not-found page.
+- [ ] Keep website claims and version information synchronized with repository documentation and published releases.
+- [ ] Add GitHub-integrated preview and production deployments with custom-domain support.
+- [ ] Validate responsive layouts, keyboard navigation, reduced motion, accessibility, and production builds.
+
+## v2.0.0 - TUI Runtime Modernization
+
+Focus: adopt the next major Ink runtime only when the supported Node.js baseline can move forward safely.
+
+- [ ] Evaluate migration to Node.js 22, React 19, and Ink 7.
+- [ ] Use native window-size and box-metrics APIs for more reliable responsive layouts.
+- [ ] Use improved focus management for forms, overlays, and keyboard navigation.
+- [ ] Evaluate synchronized rendering and limited animation APIs without introducing flicker.
+- [ ] Preserve native SSH, Nano, Vim, and other full-screen terminal application behavior.
+- [ ] Add compatibility and performance testing before dropping Node.js 20 support.
+
+## Long-term Ideas
+
+Larger features should remain exploratory until the core vault, SSH manager, and modern TUI workflows are stable.
 
 - SSH tunnel.
 - Port forwarding.

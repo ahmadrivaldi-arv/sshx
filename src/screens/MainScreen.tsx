@@ -4,26 +4,34 @@ import packageJson from '../../package.json' with { type: 'json' };
 import { ConnectionDetail } from '../components/ConnectionDetail.js';
 import { ConnectionTree, getConnectionTreeItems } from '../components/ConnectionTree.js';
 import { Frame } from '../components/Frame.js';
+import { KeyHints, type KeyHint } from '../components/KeyHints.js';
 import { SearchBar } from '../components/SearchBar.js';
+import { SshxLogo } from '../components/SshxLogo.js';
+import { StatusMessage } from '../components/StatusMessage.js';
 import { useConnections } from '../hooks/useConnections.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ConnectionService } from '../services/config/connection-service.js';
 import {
   matchPaletteCommands,
   parsePaletteInput,
-  type ExternalPaletteCommand
+  type ExternalPaletteCommand,
+  type PaletteCommandName
 } from '../services/palette/command-palette.js';
 import type { ConnectionHealthService } from '../services/ssh/connection-health-service.js';
 import { formatSshOptions, parseSshOptionsText } from '../services/ssh/ssh-options.js';
 import { useTheme } from '../themes/ThemeContext.js';
 import { getThemeGlyphs } from '../themes/themes.js';
 import type { ConnectionInput, ConnectionPatch, SshConnection } from '../types/connection.js';
+import { getResponsiveLayout } from '../utils/responsive-layout.js';
 
 interface MainScreenProps {
   connectionService: ConnectionService;
   healthService: ConnectionHealthService;
   onPaletteCommand: (command: ExternalPaletteCommand, args: string[]) => Promise<string>;
   onOpenSnippets: (query: string) => void;
+  onOpenThemes: () => void;
+  onOpenHelp: () => void;
+  onOpenAbout: () => void;
   snippetManagerKey: string;
   onConnect: (connection: SshConnection) => void;
 }
@@ -174,6 +182,9 @@ export const MainScreen = ({
   healthService,
   onPaletteCommand,
   onOpenSnippets,
+  onOpenThemes,
+  onOpenHelp,
+  onOpenAbout,
   snippetManagerKey,
   onConnect
 }: MainScreenProps): React.ReactElement => {
@@ -196,18 +207,30 @@ export const MainScreen = ({
   const [checking, setChecking] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [paletteIndex, setPaletteIndex] = useState(0);
+  const [recentCommands, setRecentCommands] = useState<PaletteCommandName[]>([]);
+  const [narrowPanel, setNarrowPanel] = useState<'list' | 'detail'>('list');
   const options = useMemo(() => ({ search: query }), [query]);
   const { connections, loading, error, reload } = useConnections(connectionService, options);
   const visibleConnections = useMemo(() => getConnectionTreeItems(connections), [connections]);
-  const paletteMatches = useMemo(() => matchPaletteCommands(paletteQuery), [paletteQuery]);
+  const paletteMatches = useMemo(
+    () => matchPaletteCommands(paletteQuery, recentCommands),
+    [paletteQuery, recentCommands]
+  );
   const selectedConnection = visibleConnections[selectedIndex];
-  const responsiveCompact = columns < 100 || rows < 24;
+  const responsiveLayout = getResponsiveLayout(columns, rows);
+  const responsiveCompact = responsiveLayout === 'narrow';
   const compact = responsiveCompact || (compactOverride ?? theme.compact);
   const maxVisible = Math.max(Math.floor((rows - (compact ? 11 : 8)) / 2), 1);
 
   useEffect(() => {
     setSelectedIndex((current) => Math.min(current, Math.max(visibleConnections.length - 1, 0)));
   }, [visibleConnections.length]);
+
+  useEffect(() => {
+    if (!message || saving || checking) return;
+    const timeout = setTimeout(() => setMessage(''), 4000);
+    return (): void => clearTimeout(timeout);
+  }, [checking, message, saving]);
 
   const resetMode = (): void => {
     setMode('browse');
@@ -384,8 +407,19 @@ export const MainScreen = ({
           return;
         }
 
+        setRecentCommands((current) => [
+          command,
+          ...current.filter((name) => name !== command).slice(0, 4)
+        ]);
+
         if (command === 'snippet') {
           onOpenSnippets(parsed.args.join(' '));
+        } else if (command === 'theme' && parsed.args.length === 0) {
+          onOpenThemes();
+        } else if (command === 'help') {
+          onOpenHelp();
+        } else if (command === 'about') {
+          onOpenAbout();
         } else if (command === 'add') {
           setMode('add');
           setForm(emptyForm);
@@ -507,8 +541,14 @@ export const MainScreen = ({
       return;
     }
 
-    if (input === 'q') {
+    if (key.tab && responsiveLayout === 'narrow' && selectedConnection) {
+      setNarrowPanel((current) => (current === 'list' ? 'detail' : 'list'));
+    } else if (input === 'q') {
       app.exit();
+    } else if (input === '?') {
+      onOpenHelp();
+    } else if (input === 'T') {
+      onOpenThemes();
     } else if (input === snippetManagerKey) {
       onOpenSnippets('');
     } else if (input === '/') {
@@ -614,22 +654,53 @@ export const MainScreen = ({
                 ? 'command palette'
                 : mode;
 
-  const footerText =
+  const footerHints: KeyHint[] =
     mode === 'add' || mode === 'edit'
-      ? compact
-        ? `${glyphs.up}${glyphs.down} field  ^U clear  ${glyphs.enter} next  ^S save  esc cancel`
-        : `${glyphs.up}${glyphs.down}/tab field  ${glyphs.separator}  ctrl+u clear  ${glyphs.separator}  ${glyphs.enter} next  ${glyphs.separator}  ctrl+s save  ${glyphs.separator}  esc cancel`
+      ? [
+          { key: `${glyphs.up}${glyphs.down}/Tab`, label: 'change field' },
+          { key: '^U', label: 'clear field' },
+          { key: glyphs.enter, label: 'next field' },
+          { key: '^S', label: 'save' },
+          { key: 'Esc', label: 'cancel' }
+        ]
       : mode === 'delete-confirm'
-        ? `y confirm  ${glyphs.separator}  n/esc cancel`
+        ? [
+            { key: 'y', label: 'confirm delete' },
+            { key: 'n/Esc', label: 'cancel' }
+          ]
         : mode === 'bulk-group' || mode === 'bulk-tags'
-          ? `${glyphs.enter} apply  ${glyphs.separator}  esc cancel`
+          ? [
+              { key: glyphs.enter, label: 'apply' },
+              { key: 'Esc', label: 'cancel' }
+            ]
           : mode === 'palette'
-            ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} run  ${glyphs.separator}  esc cancel`
+            ? [
+                { key: `${glyphs.up}${glyphs.down}`, label: 'select command' },
+                { key: glyphs.enter, label: 'run' },
+                { key: 'Esc', label: 'cancel' }
+              ]
             : mode === 'search'
-              ? `${glyphs.up}${glyphs.down} select  ${glyphs.separator}  ${glyphs.enter} connect  ${glyphs.separator}  esc clear/back`
-              : compact
-                ? `${glyphs.enter} connect  ${snippetManagerKey} snippets  : commands  q quit`
-                : `${glyphs.enter} connect  ${glyphs.separator}  ${snippetManagerKey} snippets  ${glyphs.separator}  : commands  ${glyphs.separator}  space select  ${glyphs.separator}  a/e edit  ${glyphs.separator}  h/H check  ${glyphs.separator}  f/g/t bulk  ${glyphs.separator}  d delete  ${glyphs.separator}  q quit`;
+              ? [
+                  { key: `${glyphs.up}${glyphs.down}`, label: 'select connection' },
+                  { key: glyphs.enter, label: 'connect' },
+                  { key: 'Esc', label: 'clear search' }
+                ]
+              : [
+                  { key: glyphs.enter, label: 'connect' },
+                  ...(responsiveLayout === 'narrow'
+                    ? [
+                        {
+                          key: 'Tab',
+                          label: narrowPanel === 'list' ? 'details' : 'connection list'
+                        }
+                      ]
+                    : []),
+                  { key: snippetManagerKey, label: 'snippets' },
+                  { key: ':', label: 'commands' },
+                  { key: 'T', label: 'themes' },
+                  { key: '?', label: 'help' },
+                  { key: 'q', label: 'quit' }
+                ];
 
   const formFields = compact ? fields.filter((_, index) => index === fieldIndex) : fields;
 
@@ -648,12 +719,12 @@ export const MainScreen = ({
       subtitle={!compact ? <Text color={theme.muted}>{subtitle}</Text> : undefined}
       footer={
         <Box flexDirection="column" width="100%">
-          <Text color={theme.muted}>{footerText}</Text>
-          {message ? (
-            <Text color={theme.warning}>
-              {glyphs.warning} {message}
-            </Text>
-          ) : null}
+          <KeyHints
+            hints={footerHints}
+            compact={compact}
+            limit={compact ? 4 : responsiveLayout === 'medium' ? 5 : undefined}
+          />
+          <StatusMessage message={message} tone={saving ? 'info' : 'warning'} busy={saving} />
         </Box>
       }
       compact={compact}
@@ -708,18 +779,27 @@ export const MainScreen = ({
           {paletteMatches.length === 0 ? (
             <Text color={theme.muted}>No matching commands</Text>
           ) : (
-            paletteMatches.slice(0, 7).map((command, index) => (
+            paletteMatches.slice(0, 7).map((command, index, visible) => (
               <Box key={command.name} flexDirection="column">
-                <Text
-                  color={index === paletteIndex ? theme.accent : theme.text}
-                  bold={index === paletteIndex}
-                >
-                  {index === paletteIndex ? `${glyphs.cursor} ` : '  '}
-                  {command.usage}
-                </Text>
-                {!compact && index === paletteIndex ? (
-                  <Text color={theme.muted}> {command.description}</Text>
+                {!compact && command.group !== visible[index - 1]?.group ? (
+                  <Text color={theme.muted} dimColor>
+                    {recentCommands.includes(command.name) && !paletteQuery ? 'RECENT · ' : ''}
+                    {command.group.toUpperCase()}
+                  </Text>
                 ) : null}
+                <Box justifyContent="space-between">
+                  <Text
+                    color={index === paletteIndex ? theme.selected : theme.text}
+                    bold={index === paletteIndex}
+                  >
+                    {index === paletteIndex ? `${glyphs.cursor} ` : '  '}
+                    {command.usage}
+                    {!compact ? <Text color={theme.muted}> — {command.description}</Text> : null}
+                  </Text>
+                  {!compact && command.shortcut ? (
+                    <Text color={theme.muted}>{command.shortcut}</Text>
+                  ) : null}
+                </Box>
               </Box>
             ))
           )}
@@ -768,59 +848,106 @@ export const MainScreen = ({
           {saving ? <Text color={theme.warning}>Deleting{glyphs.ellipsis}</Text> : null}
         </Box>
       ) : (
-        <Box flexDirection={compact ? 'column' : 'row'} flexGrow={1} overflow="hidden">
-          <Box
-            flexDirection="column"
-            width={compact ? '100%' : Math.max(30, Math.min(52, Math.floor(columns * 0.42)))}
-            borderStyle={
-              compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'single'
-            }
-            borderTop={false}
-            borderBottom={false}
-            borderLeft={false}
-            borderRight={!compact}
-            borderColor={theme.border}
-            paddingRight={compact ? 0 : 2}
-            marginRight={compact ? 0 : 2}
-            overflow="hidden"
-          >
-            <SearchBar query={query} active={mode === 'search'} />
-            {loading ? (
-              <Box flexDirection="column">
-                <Text color={theme.accent}>Loading connections{glyphs.ellipsis}</Text>
-                <Text color={theme.muted} dimColor>
-                  Reading your local SSH vault
-                </Text>
-              </Box>
-            ) : error ? (
-              <Box flexDirection="column">
-                <Text color={theme.danger} bold>
-                  Could not load connections
-                </Text>
-                <Text color={theme.danger}>{error}</Text>
-                <Text color={theme.muted}>Press r to retry.</Text>
-              </Box>
-            ) : connections.length === 0 && query ? (
-              <Box flexDirection="column">
-                <Text color={theme.muted}>
-                  No matches for {theme.ascii ? `"${query}"` : `“${query}”`}.
-                </Text>
-                <Text color={theme.muted} dimColor>
-                  Backspace to broaden the search, or Esc to clear it.
-                </Text>
-              </Box>
-            ) : (
-              <ConnectionTree
-                connections={connections}
-                selectedIndex={selectedIndex}
-                selectedIds={selectedIds}
-                maxVisible={maxVisible}
-                compact={compact}
-              />
-            )}
-          </Box>
-          {!loading && !error && selectedConnection ? (
-            <Box flexDirection="column" flexGrow={1} marginTop={compact ? 1 : 0} overflow="hidden">
+        <Box flexDirection="row" flexGrow={1} overflow="hidden">
+          {responsiveLayout !== 'narrow' || narrowPanel === 'list' ? (
+            <Box
+              flexDirection="column"
+              width={
+                responsiveCompact ? '100%' : Math.max(30, Math.min(52, Math.floor(columns * 0.42)))
+              }
+              borderStyle={
+                responsiveCompact || !theme.decorated
+                  ? undefined
+                  : theme.ascii
+                    ? 'classic'
+                    : 'single'
+              }
+              borderTop={false}
+              borderBottom={false}
+              borderLeft={false}
+              borderRight={!responsiveCompact}
+              borderColor={theme.border}
+              paddingRight={responsiveCompact ? 0 : 2}
+              marginRight={responsiveCompact ? 0 : 2}
+              overflow="hidden"
+            >
+              <SearchBar query={query} active={mode === 'search'} />
+              {loading ? (
+                <Box flexDirection="column">
+                  <Text color={theme.accent}>Loading connections{glyphs.ellipsis}</Text>
+                  <Text color={theme.muted} dimColor>
+                    Reading your local SSH vault
+                  </Text>
+                </Box>
+              ) : error ? (
+                <Box flexDirection="column">
+                  <Text color={theme.danger} bold>
+                    Could not load connections
+                  </Text>
+                  <Text color={theme.danger}>{error}</Text>
+                  <Text color={theme.muted}>Press r to retry.</Text>
+                </Box>
+              ) : connections.length === 0 && query ? (
+                <Box flexDirection="column">
+                  <Text color={theme.muted}>
+                    No matches for {theme.ascii ? `"${query}"` : `“${query}”`}.
+                  </Text>
+                  <Text color={theme.muted} dimColor>
+                    Backspace to broaden the search, or Esc to clear it.
+                  </Text>
+                </Box>
+              ) : connections.length === 0 ? (
+                <Box
+                  flexDirection="column"
+                  alignItems={responsiveLayout === 'wide' ? 'center' : 'flex-start'}
+                  paddingX={responsiveLayout === 'wide' ? 2 : 0}
+                >
+                  <SshxLogo compact={responsiveLayout !== 'wide'} />
+                  <Text color={theme.text} bold>
+                    Welcome — add your first SSH connection
+                  </Text>
+                  <Box flexDirection="column" marginTop={compact ? 0 : 1}>
+                    <Text color={theme.text}>
+                      <Text color={theme.selected} bold>
+                        a
+                      </Text>{' '}
+                      Add a host manually
+                    </Text>
+                    <Text color={theme.text}>
+                      <Text color={theme.selected} bold>
+                        :import
+                      </Text>{' '}
+                      Import an SSH config or backup
+                    </Text>
+                    <Text color={theme.text}>
+                      <Text color={theme.selected} bold>
+                        ?
+                      </Text>{' '}
+                      Learn the keyboard workflow
+                    </Text>
+                  </Box>
+                  {!compact ? (
+                    <Text color={theme.muted}>
+                      Tip: sshx import ~/.ssh/config previews entries before saving.
+                    </Text>
+                  ) : null}
+                </Box>
+              ) : (
+                <ConnectionTree
+                  connections={connections}
+                  selectedIndex={selectedIndex}
+                  selectedIds={selectedIds}
+                  maxVisible={maxVisible}
+                  compact={compact}
+                />
+              )}
+            </Box>
+          ) : null}
+          {!loading &&
+          !error &&
+          selectedConnection &&
+          (responsiveLayout !== 'narrow' || narrowPanel === 'detail') ? (
+            <Box flexDirection="column" flexGrow={1} overflow="hidden">
               <ConnectionDetail connection={selectedConnection} compact={compact} />
             </Box>
           ) : null}

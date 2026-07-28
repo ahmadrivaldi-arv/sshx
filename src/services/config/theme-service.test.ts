@@ -36,7 +36,7 @@ const createServices = async (): Promise<{
 
   return {
     configService,
-    themeService: new ThemeService(configService)
+    themeService: new ThemeService(configService, undefined, { noColor: false })
   };
 };
 

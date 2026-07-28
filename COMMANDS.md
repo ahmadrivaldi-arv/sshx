@@ -1,6 +1,6 @@
 # Command Reference
 
-This is the complete command-line reference for Sshx v1.1.0. Run
+This is the complete command-line reference for Sshx v1.2.0. Run
 `sshx <command> --help` for the same options in the terminal.
 
 ## Global
@@ -141,7 +141,12 @@ Restore options:
 
 `replace` replaces the complete current vault. Backups include configuration,
 connection metadata, recents, snippets, and theme preferences, but exclude
-passwords and password secret references.
+passwords and password secret references. On the same machine, restore preserves
+the existing secure-vault reference when a connection ID or full SSH endpoint
+matches. Restoring on another machine still requires entering passwords again.
+If an earlier replace restore removed a local reference, running the restore
+again can reconnect an existing credential that is still present in the secure
+vault under the same connection ID.
 
 ## Command snippets
 
@@ -233,15 +238,22 @@ sshx logs --path
 
 ## TUI command palette
 
-Press `:` and fuzzy-search these commands:
+Press `:` and fuzzy-search grouped commands. Recent commands appear first when
+the query is empty, and available direct shortcuts are shown on the right.
 
 ```text
 :add
 :edit
 :delete
-:import <file> [--apply] [--strategy=skip|overwrite|rename]
+:import [file] [--apply] [--strategy=skip|overwrite|rename]
 :export <file>
 :logs
-:theme <name>
+:theme [name]
 :snippet <query>
+:help
+:about
 ```
+
+Without a file, `:import` previews `~/.ssh/config`. Without a name, `:theme`
+opens the native theme picker. Press `T` to open that picker directly, `?` for
+contextual help, and `Tab` to switch list/detail panels on narrow terminals.

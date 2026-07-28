@@ -10,6 +10,7 @@ import { expandHome } from '../../utils/paths.js';
 import { ConfigService } from '../config/config-service.js';
 import { migrateConfigData } from '../config/migrations.js';
 import { appConfigSchema } from '../config/schema.js';
+import { SecretService } from '../ssh/secret-service.js';
 
 export type BackupFormat = 'json' | 'yaml';
 export type RestoreStrategy = 'skip' | 'overwrite' | 'rename' | 'replace';
@@ -32,9 +33,14 @@ export interface RestoreResult {
 
 export class BackupService {
   private readonly configService: ConfigService;
+  private readonly secretService: SecretService;
 
-  public constructor(configService: ConfigService = new ConfigService()) {
+  public constructor(
+    configService: ConfigService = new ConfigService(),
+    secretService: SecretService = new SecretService()
+  ) {
     this.configService = configService;
+    this.secretService = secretService;
   }
 
   public async backup(filePath: string, format?: BackupFormat): Promise<BackupEnvelope> {
@@ -99,7 +105,14 @@ export class BackupService {
     const current = await this.configService.load();
 
     if (strategy === 'replace') {
-      await this.configService.save(backup.config);
+      await this.configService.save({
+        ...backup.config,
+        connections: await Promise.all(
+          backup.config.connections.map((source) =>
+            this.preserveLocalSecretReference(source, current.connections)
+          )
+        )
+      });
       return {
         added: 0,
         skipped: 0,
@@ -218,12 +231,29 @@ export class BackupService {
     return safe;
   }
 
+  private async preserveLocalSecretReference(
+    source: SshConnection,
+    currentConnections: SshConnection[]
+  ): Promise<SshConnection> {
+    const current =
+      currentConnections.find(({ id }) => id === source.id) ??
+      currentConnections.find((connection) => this.isSameEndpoint(connection, source));
+    const passwordSecretRef =
+      current?.passwordSecretRef ??
+      (await this.secretService.findPasswordReference(current?.id ?? source.id));
+
+    return passwordSecretRef ? { ...source, passwordSecretRef } : source;
+  }
+
   private isDuplicate(left: SshConnection, right: SshConnection): boolean {
+    return left.name.toLowerCase() === right.name.toLowerCase() || this.isSameEndpoint(left, right);
+  }
+
+  private isSameEndpoint(left: SshConnection, right: SshConnection): boolean {
     return (
-      left.name.toLowerCase() === right.name.toLowerCase() ||
-      (left.host.toLowerCase() === right.host.toLowerCase() &&
-        left.username.toLowerCase() === right.username.toLowerCase() &&
-        left.port === right.port)
+      left.host.toLowerCase() === right.host.toLowerCase() &&
+      left.username.toLowerCase() === right.username.toLowerCase() &&
+      left.port === right.port
     );
   }
 

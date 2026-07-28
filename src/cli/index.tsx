@@ -2,6 +2,8 @@
 import React from 'react';
 import { Command } from 'commander';
 import { render } from 'ink';
+import os from 'node:os';
+import path from 'node:path';
 import { registerAddCommand } from '../commands/add-command.js';
 import { registerBackupCommands } from '../commands/backup-command.js';
 import { registerCheckCommand } from '../commands/check-command.js';
@@ -46,6 +48,7 @@ const runTui = async (
 
   while (true) {
     let selectedConnection: SshConnection | undefined;
+    let restartRequested = false;
     if (useAlternateScreen) {
       process.stdout.write('\x1B[?1049h\x1B[2J\x1B[H');
     }
@@ -54,10 +57,14 @@ const runTui = async (
         <App
           connectionService={connectionService}
           snippetService={snippetService}
+          themeService={themeService}
           healthService={healthService}
           keymap={await keymapService.get()}
           onPaletteCommand={onPaletteCommand}
           theme={await themeService.getResolved()}
+          onRestart={() => {
+            restartRequested = true;
+          }}
           onConnect={(connection) => {
             selectedConnection = connection;
           }}
@@ -74,6 +81,7 @@ const runTui = async (
       }
     }
 
+    if (restartRequested) continue;
     if (!selectedConnection) return;
     const startedAt = Date.now();
     const exitCode = await session.connect(selectedConnection);
@@ -120,10 +128,7 @@ const main = async (): Promise<void> => {
       return `Exported connections to ${file}`;
     }
 
-    const file = args[0];
-    if (!file) {
-      throw new Error('Usage: :import <file> [--apply] [--strategy=skip|overwrite|rename]');
-    }
+    const file = args[0] ?? path.join(os.homedir(), '.ssh', 'config');
     const strategyArgument = args.find((argument) => argument.startsWith('--strategy='));
     const strategy = strategyArgument?.slice('--strategy='.length) ?? 'skip';
     if (strategy !== 'skip' && strategy !== 'overwrite' && strategy !== 'rename') {

@@ -2,16 +2,21 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import packageJson from '../../package.json' with { type: 'json' };
 import { Frame } from '../components/Frame.js';
+import { HighlightedCommand } from '../components/HighlightedCommand.js';
+import { KeyHints, type KeyHint } from '../components/KeyHints.js';
+import { StatusMessage } from '../components/StatusMessage.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { SnippetService } from '../services/config/snippet-service.js';
 import { useTheme } from '../themes/ThemeContext.js';
 import { getThemeGlyphs } from '../themes/themes.js';
 import type { CommandSnippet, SnippetInput, SnippetPatch } from '../types/snippet.js';
+import { getResponsiveLayout } from '../utils/responsive-layout.js';
 
 interface SnippetManagerScreenProps {
   service: SnippetService;
   initialQuery?: string;
   onClose: () => void;
+  onHelp: () => void;
 }
 
 type ManagerMode = 'browse' | 'search' | 'add' | 'edit' | 'delete-confirm';
@@ -65,12 +70,14 @@ const parseTags = (value: string): string[] =>
 export const SnippetManagerScreen = ({
   service,
   initialQuery = '',
-  onClose
+  onClose,
+  onHelp
 }: SnippetManagerScreenProps): React.ReactElement => {
   const theme = useTheme();
   const glyphs = getThemeGlyphs(theme.ascii);
   const { columns, rows } = useTerminalSize();
-  const compact = rows < 24 || columns < 100;
+  const layout = getResponsiveLayout(columns, rows);
+  const compact = layout === 'narrow';
   const [mode, setMode] = useState<ManagerMode>(initialQuery ? 'search' : 'browse');
   const [query, setQuery] = useState(initialQuery);
   const [snippets, setSnippets] = useState<CommandSnippet[]>([]);
@@ -110,6 +117,12 @@ export const SnippetManagerScreen = ({
   useEffect(() => {
     setSelectedIndex((current) => Math.min(current, Math.max(snippets.length - 1, 0)));
   }, [snippets.length]);
+
+  useEffect(() => {
+    if (!message || saving) return;
+    const timeout = setTimeout(() => setMessage(''), 4000);
+    return (): void => clearTimeout(timeout);
+  }, [message, saving]);
 
   const resetForm = (): void => {
     setForm(emptyForm);
@@ -261,7 +274,9 @@ export const SnippetManagerScreen = ({
       return;
     }
 
-    if (input === 'q' || key.escape) {
+    if (input === '?') {
+      onHelp();
+    } else if (input === 'q' || key.escape) {
       onClose();
     } else if (input === '/') {
       setMode('search');
@@ -289,14 +304,33 @@ export const SnippetManagerScreen = ({
     }
   });
 
-  const footer =
+  const footerHints: KeyHint[] =
     mode === 'add' || mode === 'edit'
-      ? `${glyphs.up}${glyphs.down}/tab field ${glyphs.separator} Ctrl+U clear ${glyphs.separator} Ctrl+S save ${glyphs.separator} Esc cancel`
+      ? [
+          { key: `${glyphs.up}${glyphs.down}/Tab`, label: 'change field' },
+          { key: '^U', label: 'clear' },
+          { key: '^S', label: 'save' },
+          { key: 'Esc', label: 'cancel' }
+        ]
       : mode === 'delete-confirm'
-        ? `y confirm ${glyphs.separator} n/Esc cancel`
+        ? [
+            { key: 'y', label: 'confirm delete' },
+            { key: 'n/Esc', label: 'cancel' }
+          ]
         : mode === 'search'
-          ? `${glyphs.up}${glyphs.down} select ${glyphs.separator} type to search ${glyphs.separator} Enter manage ${glyphs.separator} Esc clear/back`
-          : `a add ${glyphs.separator} e edit ${glyphs.separator} d delete ${glyphs.separator} / search ${glyphs.separator} q back`;
+          ? [
+              { key: `${glyphs.up}${glyphs.down}`, label: 'select' },
+              { key: glyphs.enter, label: 'manage' },
+              { key: 'Esc', label: 'clear search' }
+            ]
+          : [
+              { key: 'a', label: 'add snippet' },
+              { key: 'e', label: 'edit' },
+              { key: 'd', label: 'delete' },
+              { key: '/', label: 'search' },
+              { key: '?', label: 'help' },
+              { key: 'q', label: 'back' }
+            ];
 
   return (
     <Frame
@@ -319,8 +353,8 @@ export const SnippetManagerScreen = ({
       }
       footer={
         <Box flexDirection="column">
-          <Text color={theme.muted}>{footer}</Text>
-          {message ? <Text color={theme.warning}>{message}</Text> : null}
+          <KeyHints hints={footerHints} compact={compact} limit={compact ? 4 : undefined} />
+          <StatusMessage message={message} tone={saving ? 'info' : 'warning'} busy={saving} />
         </Box>
       }
       compact={compact}
@@ -366,42 +400,75 @@ export const SnippetManagerScreen = ({
       ) : (
         <Box flexDirection="column">
           {mode === 'search' ? (
-            <Text color={theme.accent} bold>
+            <Text color={theme.selected} bold>
               /{query}
               {glyphs.inputCursor}
             </Text>
           ) : null}
-          {loading ? (
-            <Text color={theme.accent}>Loading snippets{glyphs.ellipsis}</Text>
-          ) : visibleSnippets.length === 0 ? (
-            <Text color={theme.muted}>
-              {query ? 'No matching snippets' : 'No snippets yet. Press a to add one.'}
-            </Text>
-          ) : (
-            visibleSnippets.map((snippet) => {
-              const active = snippet.id === selected?.id;
-              return (
-                <Text
-                  key={snippet.id}
-                  color={active ? theme.accent : theme.text}
-                  bold={active}
-                  wrap="truncate"
-                >
-                  {active ? `${glyphs.cursor} ` : '  '}
-                  {snippet.name}
-                  {snippet.tags.length > 0 ? `  #${snippet.tags.join(' #')}` : ''}
+          <Box flexDirection={compact ? 'column' : 'row'} flexGrow={1}>
+            <Box
+              flexDirection="column"
+              width={compact ? '100%' : layout === 'wide' ? 42 : 34}
+              paddingRight={compact ? 0 : 2}
+              borderStyle={
+                compact || !theme.decorated ? undefined : theme.ascii ? 'classic' : 'single'
+              }
+              borderTop={false}
+              borderBottom={false}
+              borderLeft={false}
+              borderRight={!compact}
+              borderColor={theme.border}
+            >
+              {loading ? (
+                <StatusMessage message="Loading snippets" busy />
+              ) : visibleSnippets.length === 0 ? (
+                <Text color={theme.muted}>
+                  {query ? 'No matching snippets' : 'No snippets yet. Press a to add one.'}
                 </Text>
-              );
-            })
-          )}
-          {selected ? (
-            <Box flexDirection="column" marginTop={compact ? 0 : 1}>
-              <Text color={theme.muted}>{selected.description ?? 'No description'}</Text>
-              <Text color={theme.text} wrap="truncate">
-                {selected.command}
-              </Text>
+              ) : (
+                visibleSnippets.map((snippet) => {
+                  const active = snippet.id === selected?.id;
+                  return (
+                    <Text
+                      key={snippet.id}
+                      color={active ? theme.selected : theme.text}
+                      bold={active}
+                      wrap="truncate"
+                    >
+                      {active ? `${glyphs.cursor} ` : '  '}
+                      {snippet.name}
+                      {snippet.tags.length > 0 ? `  #${snippet.tags.join(' #')}` : ''}
+                    </Text>
+                  );
+                })
+              )}
             </Box>
-          ) : null}
+            {selected ? (
+              <Box
+                flexDirection="column"
+                flexGrow={1}
+                marginLeft={compact ? 0 : 2}
+                marginTop={compact ? 1 : 0}
+              >
+                <Text color={theme.selected} bold>
+                  {selected.name}
+                </Text>
+                <Text color={theme.muted}>{selected.description ?? 'No description'}</Text>
+                <Box marginTop={compact ? 0 : 1}>
+                  <HighlightedCommand command={selected.command} />
+                </Box>
+                {!compact ? (
+                  <Box flexDirection="column" marginTop={1}>
+                    <Text color={theme.muted}>Placeholders are highlighted for editing.</Text>
+                    <Text color={theme.success}>
+                      In an SSH session, selecting a snippet inserts it; your shell Enter executes
+                      it.
+                    </Text>
+                  </Box>
+                ) : null}
+              </Box>
+            ) : null}
+          </Box>
         </Box>
       )}
     </Frame>

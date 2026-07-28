@@ -34,6 +34,7 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - Multi-select connections for bulk delete, favorite, group, and tag actions.
 - SSH health checks with online, unreachable, timeout, and authentication-required status.
 - Fuzzy `:` command palette for connection and vault operations.
+- Grouped command palette with recent actions, descriptions, and shortcut hints.
 - Versioned full-configuration backup and restore without secret references.
 - Versioned configuration migration and cross-platform release verification.
 - Export connections to JSON or YAML.
@@ -43,8 +44,10 @@ planned work in [ROADMAP.md](ROADMAP.md).
 - A TUI snippet manager for searching, adding, editing, and deleting snippets.
 - Configurable snippet-manager and in-session picker keymaps.
 - Per-connection OpenSSH options, including optional weak-crypto warning suppression.
-- Responsive compact layout for small terminals (toggle manually with `c`).
+- Responsive wide, medium, and narrow layouts with a single-panel small-terminal fallback.
 - Built-in and externally installed themes, custom accent colors, and persistent compact/ASCII preferences.
+- Native theme picker with live preview, restart confirmation, adaptive colors, and `NO_COLOR` support.
+- Contextual `?` help, first-run guidance, reusable key hints, and an About screen.
 - Secure password storage:
   - macOS: Keychain
   - Linux: Secret Service via `secret-tool`
@@ -64,7 +67,7 @@ For a local production-style install from this repository:
 bun install
 bun run build
 npm pack
-npm install -g ./ahmdrv-sshx-1.1.0.tgz
+npm install -g ./ahmdrv-sshx-1.2.0.tgz
 sshx
 ```
 
@@ -112,6 +115,9 @@ h      check selected or multi-selected connection health
 H      check all visible connection health
 :      open the fuzzy command palette
 s      open the snippet manager (configurable)
+T      open the theme picker with live preview
+?      open contextual help
+Tab    switch list/detail panels in narrow terminals
 c      toggle compact layout for the current session
 Esc    cancel current mode
 q      quit
@@ -307,6 +313,11 @@ sshx theme install ~/Downloads/ocean.json
 sshx theme set ocean --clear-accent
 ```
 
+Inside the TUI, press `T` or run `:theme` to browse every installed theme.
+`Up`/`Down` previews without saving. `Enter` offers **Apply & restart**,
+**Apply next launch**, or **Cancel**; cancel restores the previous appearance.
+Set `NO_COLOR=1` to disable all TUI colors while retaining structure and text.
+
 Use the command palette:
 
 ```text
@@ -316,8 +327,11 @@ Use the command palette:
 :import connections.json --strategy=rename --apply
 :export connections.yaml
 :logs
+:theme
 :theme dracula
 :snippet docker
+:help
+:about
 ```
 
 Available themes are `default`, `minimal`, `mono`, `dracula`, `nord`, `catppuccin`,
@@ -424,8 +438,8 @@ Pushing a matching version tag runs the release workflow, repeats the checks,
 verifies the package contents, and publishes to npm:
 
 ```bash
-git tag -a v1.1.0 -m "v1.1.0"
-git push origin main v1.1.0
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin main v1.2.0
 ```
 
 The published package includes only `dist`, `scripts`, `README.md`, `COMMANDS.md`,

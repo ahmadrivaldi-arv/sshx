@@ -6,7 +6,9 @@ export const paletteCommandNames = [
   'export',
   'logs',
   'theme',
-  'snippet'
+  'snippet',
+  'help',
+  'about'
 ] as const;
 
 export type PaletteCommandName = (typeof paletteCommandNames)[number];
@@ -19,21 +21,77 @@ export interface PaletteCommand {
   name: PaletteCommandName;
   description: string;
   usage: string;
+  group: 'Connections' | 'Workspace' | 'Appearance' | 'Support';
+  shortcut?: string;
 }
 
 export const paletteCommands: PaletteCommand[] = [
-  { name: 'add', description: 'Add a connection', usage: ':add' },
-  { name: 'edit', description: 'Edit the selected connection', usage: ':edit' },
-  { name: 'delete', description: 'Delete selected connections', usage: ':delete' },
+  {
+    name: 'add',
+    description: 'Add a connection',
+    usage: ':add',
+    group: 'Connections',
+    shortcut: 'a'
+  },
+  {
+    name: 'edit',
+    description: 'Edit the selected connection',
+    usage: ':edit',
+    group: 'Connections',
+    shortcut: 'e'
+  },
+  {
+    name: 'delete',
+    description: 'Delete selected connections',
+    usage: ':delete',
+    group: 'Connections',
+    shortcut: 'd'
+  },
   {
     name: 'import',
     description: 'Preview or apply an import',
-    usage: ':import <file> [--apply] [--strategy=skip|overwrite|rename]'
+    usage: ':import [file] [--apply] [--strategy=skip|overwrite|rename]',
+    group: 'Connections'
   },
-  { name: 'export', description: 'Export connections', usage: ':export <file>' },
-  { name: 'logs', description: 'Show the log file path', usage: ':logs' },
-  { name: 'theme', description: 'Apply a theme', usage: ':theme <name>' },
-  { name: 'snippet', description: 'Search command snippets', usage: ':snippet <query>' }
+  {
+    name: 'export',
+    description: 'Export connections',
+    usage: ':export <file>',
+    group: 'Connections'
+  },
+  {
+    name: 'snippet',
+    description: 'Search command snippets',
+    usage: ':snippet <query>',
+    group: 'Workspace',
+    shortcut: 's'
+  },
+  {
+    name: 'theme',
+    description: 'Browse themes or apply one by name',
+    usage: ':theme [name]',
+    group: 'Appearance',
+    shortcut: 'T'
+  },
+  {
+    name: 'help',
+    description: 'Show contextual keyboard help',
+    usage: ':help',
+    group: 'Support',
+    shortcut: '?'
+  },
+  {
+    name: 'about',
+    description: 'Show version and project links',
+    usage: ':about',
+    group: 'Support'
+  },
+  {
+    name: 'logs',
+    description: 'Show the log file path',
+    usage: ':logs',
+    group: 'Support'
+  }
 ];
 
 export const fuzzyScore = (query: string, candidate: string): number | undefined => {
@@ -59,14 +117,28 @@ export const fuzzyScore = (query: string, candidate: string): number | undefined
   return undefined;
 };
 
-export const matchPaletteCommands = (query: string): PaletteCommand[] => {
+export const matchPaletteCommands = (
+  query: string,
+  recent: readonly PaletteCommandName[] = []
+): PaletteCommand[] => {
   const commandQuery = query.trim().split(/\s+/, 1)[0] ?? '';
   return paletteCommands
     .map((command) => ({ command, score: fuzzyScore(commandQuery, command.name) }))
     .filter(
       (match): match is { command: PaletteCommand; score: number } => match.score !== undefined
     )
-    .sort((left, right) => right.score - left.score)
+    .sort((left, right) => {
+      if (!commandQuery) {
+        const leftRecent = recent.indexOf(left.command.name);
+        const rightRecent = recent.indexOf(right.command.name);
+        if (leftRecent >= 0 || rightRecent >= 0) {
+          if (leftRecent < 0) return 1;
+          if (rightRecent < 0) return -1;
+          return leftRecent - rightRecent;
+        }
+      }
+      return right.score - left.score;
+    })
     .map(({ command }) => command);
 };
 

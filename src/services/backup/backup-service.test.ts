@@ -5,14 +5,24 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigService } from '../config/config-service.js';
 import { ConnectionService } from '../config/connection-service.js';
 import { SnippetService } from '../config/snippet-service.js';
+import { SecretService } from '../ssh/secret-service.js';
 import { BackupService } from './backup-service.js';
 
 let tempDir: string | undefined;
+
+class TestSecretService extends SecretService {
+  public readonly references = new Map<string, string>();
+
+  public override async findPasswordReference(connectionId: string): Promise<string | undefined> {
+    return this.references.get(connectionId);
+  }
+}
 
 const createServices = async (): Promise<{
   backup: BackupService;
   config: ConfigService;
   connections: ConnectionService;
+  secrets: TestSecretService;
   snippets: SnippetService;
 }> => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'sshx-backup-'));
@@ -20,10 +30,12 @@ const createServices = async (): Promise<{
     configDir: tempDir,
     configFile: path.join(tempDir, 'config.json')
   });
+  const secrets = new TestSecretService();
   return {
-    backup: new BackupService(config),
+    backup: new BackupService(config, secrets),
     config,
     connections: new ConnectionService(config),
+    secrets,
     snippets: new SnippetService(config)
   };
 };
@@ -126,6 +138,146 @@ describe('BackupService', () => {
     await writeFile(file, JSON.stringify({ backupVersion: 999 }), 'utf8');
 
     await expect(backup.validate(file)).rejects.toThrow('Invalid backup');
+  });
+
+  it('preserves local password references when replacing config from a safe backup', async () => {
+    const { backup, config, connections } = await createServices();
+    const connection = await connections.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      username: 'deploy'
+    });
+    const current = await config.load();
+    current.connections[0] = {
+      ...connection,
+      passwordSecretRef: 'keychain://sshx/local-production'
+    };
+    await config.save(current);
+    const file = path.join(tempDir as string, 'replace.json');
+
+    await backup.backup(file);
+    const changed = await config.load();
+    changed.connections[0] = {
+      ...connection,
+      name: 'Temporary local name',
+      passwordSecretRef: 'keychain://sshx/local-production'
+    };
+    await config.save(changed);
+
+    await expect(backup.restore(file, 'replace')).resolves.toMatchObject({ replaced: 1 });
+    await expect(config.load()).resolves.toMatchObject({
+      connections: [
+        {
+          id: connection.id,
+          name: 'Production',
+          passwordSecretRef: 'keychain://sshx/local-production'
+        }
+      ]
+    });
+    const serialized = JSON.parse(await readFile(file, 'utf8'));
+    expect(serialized.config.connections[0].passwordSecretRef).toBeUndefined();
+  });
+
+  it('preserves a local password reference when a replacement matches the same endpoint', async () => {
+    const { backup, config, connections } = await createServices();
+    const currentConnection = await connections.add({
+      name: 'Current Production',
+      host: 'prod.example.com',
+      username: 'deploy'
+    });
+    const current = await config.load();
+    current.connections[0] = {
+      ...currentConnection,
+      passwordSecretRef: 'keychain://sshx/local-production'
+    };
+    await config.save(current);
+    const sourceConfig = await config.load();
+    sourceConfig.connections = [
+      {
+        ...currentConnection,
+        id: '00000000-0000-4000-8000-000000000099',
+        name: 'Restored Production'
+      }
+    ];
+    delete sourceConfig.connections[0]?.passwordSecretRef;
+    const file = path.join(tempDir as string, 'endpoint-match.json');
+    await writeFile(
+      file,
+      JSON.stringify({
+        backupVersion: 1,
+        createdAt: new Date().toISOString(),
+        config: sourceConfig
+      }),
+      'utf8'
+    );
+
+    await backup.restore(file, 'replace');
+
+    await expect(config.load()).resolves.toMatchObject({
+      connections: [
+        {
+          id: '00000000-0000-4000-8000-000000000099',
+          name: 'Restored Production',
+          passwordSecretRef: 'keychain://sshx/local-production'
+        }
+      ]
+    });
+  });
+
+  it('does not attach a local password to a different endpoint with the same name', async () => {
+    const { backup, config, connections } = await createServices();
+    const currentConnection = await connections.add({
+      name: 'Production',
+      host: 'old.example.com',
+      username: 'deploy'
+    });
+    const current = await config.load();
+    current.connections[0] = {
+      ...currentConnection,
+      passwordSecretRef: 'keychain://sshx/local-production'
+    };
+    await config.save(current);
+    const sourceConfig = await config.load();
+    sourceConfig.connections = [
+      {
+        ...currentConnection,
+        id: '00000000-0000-4000-8000-000000000099',
+        host: 'new.example.com'
+      }
+    ];
+    delete sourceConfig.connections[0]?.passwordSecretRef;
+    const file = path.join(tempDir as string, 'different-endpoint.json');
+    await writeFile(
+      file,
+      JSON.stringify({
+        backupVersion: 1,
+        createdAt: new Date().toISOString(),
+        config: sourceConfig
+      }),
+      'utf8'
+    );
+
+    await backup.restore(file, 'replace');
+
+    expect((await config.load()).connections[0]?.passwordSecretRef).toBeUndefined();
+  });
+
+  it('recovers an orphaned secure-vault reference by connection id', async () => {
+    const { backup, config, connections, secrets } = await createServices();
+    const connection = await connections.add({
+      name: 'Production',
+      host: 'prod.example.com',
+      username: 'deploy'
+    });
+    const file = path.join(tempDir as string, 'orphaned-secret.json');
+    await backup.backup(file);
+    secrets.references.set(connection.id, `keychain://sshx/${connection.id}`);
+
+    await backup.restore(file, 'replace');
+
+    expect((await config.load()).connections[0]?.passwordSecretRef).toBe(
+      `keychain://sshx/${connection.id}`
+    );
   });
 
   it('restores snippets with overwrite and rename conflict strategies', async () => {

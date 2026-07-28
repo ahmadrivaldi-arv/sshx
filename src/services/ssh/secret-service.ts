@@ -43,6 +43,11 @@ export class SecretService {
     }
   }
 
+  public async findPasswordReference(connectionId: string): Promise<string | undefined> {
+    const secretRef = this.createPasswordRef(this.getBackend(), connectionId);
+    return (await this.getPassword(secretRef)) === undefined ? undefined : secretRef;
+  }
+
   public async deletePassword(secretRef: string | undefined): Promise<void> {
     if (!secretRef) {
       return;

@@ -58,4 +58,35 @@ describe('themes', () => {
     });
     expect(getThemeGlyphs(false).brand).toBe('✦');
   });
+
+  it('disables every semantic color when NO_COLOR is active', () => {
+    const resolved = resolveTheme(
+      { name: 'dracula', compact: false, ascii: false },
+      getThemeDefinition('dracula'),
+      { noColor: true }
+    );
+
+    expect({
+      accent: resolved.accent,
+      text: resolved.text,
+      muted: resolved.muted,
+      border: resolved.border,
+      success: resolved.success,
+      warning: resolved.warning,
+      danger: resolved.danger,
+      selected: resolved.selected,
+      favorite: resolved.favorite
+    }).toEqual({
+      accent: '',
+      text: '',
+      muted: '',
+      border: '',
+      success: '',
+      warning: '',
+      danger: '',
+      selected: '',
+      favorite: ''
+    });
+    expect(resolved.useConnectionColors).toBe(false);
+  });
 });

@@ -34,8 +34,10 @@ export interface ThemeDefinition {
   border: string;
   text: string;
   favorite: string;
+  success: string;
   warning: string;
   danger: string;
+  selected: string;
   decorated: boolean;
   useConnectionColors: boolean;
   source: 'built-in' | 'custom';
@@ -57,8 +59,10 @@ export interface CustomThemeFile {
     border: string;
     text: string;
     favorite: string;
+    success?: string | undefined;
     warning: string;
     danger: string;
+    selected?: string | undefined;
   };
   decorated: boolean;
   useConnectionColors: boolean;

@@ -20,8 +20,10 @@ export const customThemeFileSchema = z.object({
     border: customColorSchema,
     text: customColorSchema,
     favorite: customColorSchema,
+    success: customColorSchema.optional(),
     warning: customColorSchema,
-    danger: customColorSchema
+    danger: customColorSchema,
+    selected: customColorSchema.optional()
   }),
   decorated: z.boolean().default(true),
   useConnectionColors: z.boolean().default(false)
@@ -39,8 +41,10 @@ export const customThemeFileToDefinition = (theme: CustomThemeFile): ThemeDefini
   border: theme.colors.border,
   text: theme.colors.text,
   favorite: theme.colors.favorite,
+  success: theme.colors.success ?? theme.colors.accent,
   warning: theme.colors.warning,
   danger: theme.colors.danger,
+  selected: theme.colors.selected ?? theme.colors.accent,
   decorated: theme.decorated,
   useConnectionColors: theme.useConnectionColors,
   source: 'custom'
