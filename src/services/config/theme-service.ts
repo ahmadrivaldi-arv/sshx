@@ -17,10 +17,16 @@ import { ConfigService } from './config-service.js';
 export class ThemeService {
   private readonly configService: ConfigService;
   private readonly themesDir: string;
+  private readonly noColor: boolean;
 
-  public constructor(configService: ConfigService = new ConfigService(), themesDir?: string) {
+  public constructor(
+    configService: ConfigService = new ConfigService(),
+    themesDir?: string,
+    options: { noColor?: boolean } = {}
+  ) {
     this.configService = configService;
     this.themesDir = themesDir ?? path.join(configService.getPaths().configDir, 'themes');
+    this.noColor = options.noColor ?? Object.prototype.hasOwnProperty.call(process.env, 'NO_COLOR');
   }
 
   public getThemesDir(): string {
@@ -63,7 +69,12 @@ export class ThemeService {
 
   public async getResolved(): Promise<ResolvedTheme> {
     const config = await this.getConfig();
-    return resolveTheme(config, await this.getDefinition(config.name));
+    return this.resolve(config, await this.getDefinition(config.name));
+  }
+
+  public async preview(name: string): Promise<ResolvedTheme> {
+    const config = await this.getConfig();
+    return this.resolve({ ...config, name }, await this.getDefinition(name));
   }
 
   public async update(patch: ThemeConfigPatch): Promise<ResolvedTheme> {
@@ -84,7 +95,7 @@ export class ThemeService {
     const definition = await this.getDefinition(theme.name);
     await this.configService.save({ ...config, theme });
 
-    return resolveTheme(theme, definition);
+    return this.resolve(theme, definition);
   }
 
   public async install(
@@ -180,5 +191,11 @@ export class ThemeService {
 
       throw new AppError('THEME_READ_FAILED', `Failed to read theme file "${filePath}"`, error);
     }
+  }
+
+  private resolve(config: ThemeConfig, definition: ThemeDefinition): ResolvedTheme {
+    return resolveTheme(config, definition, {
+      noColor: this.noColor
+    });
   }
 }

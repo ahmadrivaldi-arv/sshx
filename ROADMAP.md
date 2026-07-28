@@ -122,23 +122,23 @@ Focus: keep users inside Sshx between sessions and make repeatable remote comman
 
 Focus: establish a consistent, responsive visual system that feels modern without sacrificing native terminal behavior or accessibility.
 
-- [ ] Add semantic design tokens for accent, text, muted, border, success, warning, danger, and selected states.
-- [ ] Add `NO_COLOR` support and preserve adaptive light/dark terminal colors.
-- [ ] Redesign the main screen as a responsive connection-list and detail split view.
-- [ ] Redesign the snippet manager as a list and command-preview split view.
-- [ ] Modernize the command palette with grouped actions, recent commands, descriptions, and right-aligned shortcuts.
-- [ ] Add a native TUI theme picker so installed themes can be browsed without running a CLI command.
-- [ ] Support `Up`/`Down` theme navigation with a temporary live preview that does not immediately persist the selection.
-- [ ] Confirm theme selection with `Apply & restart`, `Apply next launch`, and `Cancel` actions; canceling must restore the original theme.
-- [ ] Add a reusable key-hint component with consistent styling across screens.
-- [ ] Add contextual help with `?` based on the active screen and interaction mode.
-- [ ] Add first-run onboarding with SSH config import, manual connection, and documentation actions.
-- [ ] Add an About screen with the Sshx wordmark, version, active theme, documentation, repository, npm, license, and update information.
-- [ ] Use a large responsive Sshx wordmark only in onboarding and About, with a compact brand mark in space-constrained screens.
-- [ ] Add wide, medium, and narrow terminal layouts with graceful single-panel fallback.
-- [ ] Add clear, restrained progress indicators and transient status messages for long-running actions.
-- [ ] Highlight snippet placeholders and clearly distinguish insert-only from insert-and-execute actions.
-- [ ] Add visual regression coverage for common terminal sizes, light/dark appearances, ASCII mode, and `NO_COLOR`.
+- [x] Add semantic design tokens for accent, text, muted, border, success, warning, danger, and selected states.
+- [x] Add `NO_COLOR` support and preserve adaptive light/dark terminal colors.
+- [x] Redesign the main screen as a responsive connection-list and detail split view.
+- [x] Redesign the snippet manager as a list and command-preview split view.
+- [x] Modernize the command palette with grouped actions, recent commands, descriptions, and right-aligned shortcuts.
+- [x] Add a native TUI theme picker so installed themes can be browsed without running a CLI command.
+- [x] Support `Up`/`Down` theme navigation with a temporary live preview that does not immediately persist the selection.
+- [x] Confirm theme selection with `Apply & restart`, `Apply next launch`, and `Cancel` actions; canceling must restore the original theme.
+- [x] Add a reusable key-hint component with consistent styling across screens.
+- [x] Add contextual help with `?` based on the active screen and interaction mode.
+- [x] Add first-run onboarding with SSH config import, manual connection, and documentation actions.
+- [x] Add an About screen with the Sshx wordmark, version, active theme, documentation, repository, npm, license, and update information.
+- [x] Use a large responsive Sshx wordmark only in onboarding and About, with a compact brand mark in space-constrained screens.
+- [x] Add wide, medium, and narrow terminal layouts with graceful single-panel fallback.
+- [x] Add clear, restrained progress indicators and transient status messages for long-running actions.
+- [x] Highlight snippet placeholders and clearly distinguish insert-only from insert-and-execute actions.
+- [x] Add visual regression coverage for common terminal sizes, light/dark appearances, ASCII mode, and `NO_COLOR`.
 
 ## v1.3.0 - Theme Ecosystem
 

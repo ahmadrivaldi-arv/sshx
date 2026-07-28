@@ -5,6 +5,34 @@ All notable changes to Sshx are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-28
+
+### Added
+
+- Semantic theme tokens for accent, text, muted, border, success, warning,
+  danger, and selected states.
+- `NO_COLOR` support with terminal-adaptive foregrounds and no hardcoded
+  background colors.
+- Responsive wide, medium, and narrow connection layouts with single-panel
+  list/detail navigation on small terminals.
+- A list/preview snippet manager with highlighted placeholders and clear
+  insert-only behavior guidance.
+- A grouped command palette with recent actions, descriptions, and shortcut
+  hints.
+- A native TUI theme picker with temporary live preview and explicit
+  apply-and-restart, apply-next-launch, and cancel choices.
+- Reusable key hints, transient status feedback, contextual `?` help,
+  first-run actions, and a responsive About screen and Sshx wordmark.
+- TUI snapshot coverage for common terminal sizes, adaptive/dark appearances,
+  ASCII mode, and `NO_COLOR`.
+
+### Changed
+
+- Custom themes may define optional `success` and `selected` colors while
+  remaining backward compatible with existing theme files.
+- `:import` without a file now previews the default `~/.ssh/config`.
+- `:theme` without a name opens the native theme picker.
+
 ## [1.1.0] - 2026-07-27
 
 ### Added
@@ -137,6 +165,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Placed OpenSSH options before the destination so they are parsed consistently across platforms.
 - Preserved additional per-host OpenSSH directives when importing SSH config files.
 
+[1.2.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/ahmadrivaldi-arv/sshx/compare/v0.8.0...v0.9.0

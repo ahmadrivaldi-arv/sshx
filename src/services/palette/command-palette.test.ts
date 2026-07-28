@@ -14,5 +14,14 @@ describe('command palette', () => {
       args: ['hosts.json', '--apply']
     });
     expect(parsePaletteInput('unknown')).toEqual({ args: [] });
+    expect(parsePaletteInput('about')).toEqual({ command: 'about', args: [] });
+  });
+
+  it('places recent commands first when the query is empty', () => {
+    expect(
+      matchPaletteCommands('', ['theme', 'snippet'])
+        .slice(0, 2)
+        .map(({ name }) => name)
+    ).toEqual(['theme', 'snippet']);
   });
 });

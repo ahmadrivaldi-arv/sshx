@@ -124,7 +124,7 @@ export const ConnectionTree = ({
 
             return (
               <Box key={connection.id} flexDirection="row" alignItems="center">
-                <Text color={selected ? theme.accent : theme.muted} bold={selected}>
+                <Text color={selected ? theme.selected : theme.muted} bold={selected}>
                   {selected ? `${glyphs.cursor} ` : '  '}
                 </Text>
                 <Text color={selectedIds.has(connection.id) ? theme.accent : theme.muted}>
@@ -135,7 +135,7 @@ export const ConnectionTree = ({
                     bold={selected}
                     color={
                       selected
-                        ? theme.accent
+                        ? theme.selected
                         : theme.useConnectionColors
                           ? (connection.color ?? theme.text)
                           : theme.text
@@ -145,7 +145,7 @@ export const ConnectionTree = ({
                   </Text>
                 </Box>
                 {connection.favorite && <Text color={theme.favorite}> {glyphs.favorite}</Text>}
-                <Text color={connection.healthStatus === 'online' ? theme.accent : theme.muted}>
+                <Text color={connection.healthStatus === 'online' ? theme.success : theme.muted}>
                   {' '}
                   {healthIndicator(connection, theme.ascii)}
                 </Text>

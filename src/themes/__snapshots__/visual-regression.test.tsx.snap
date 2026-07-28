@@ -1,0 +1,42 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TUI visual regression > covers wide dark, medium adaptive, narrow ASCII, and no-color output 1`] = `
+{
+  "mediumAdaptive": "███████╗███████╗██╗  ██╗██╗  ██╗
+██╔════╝██╔════╝██║  ██║╚██╗██╔╝
+███████╗███████╗███████║ ╚███╔╝
+╚════██║╚════██║██╔══██║ ██╔██╗
+███████║███████║██║  ██║██╔╝ ██╗
+╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
+medium · 96x24
+❯ production-api                deploy command
+                                deploy --host {{host}} --tag {{version}}
+Enter connect • T themes • ? help",
+  "narrowAscii": "sshx
+narrow · 64x20
+❯ production-api
+deploy command
+deploy --host {{host}} --tag {{version}}
+Enter connect | T themes | ? help",
+  "noColor": "███████╗███████╗██╗  ██╗██╗  ██╗
+██╔════╝██╔════╝██║  ██║╚██╗██╔╝
+███████╗███████╗███████║ ╚███╔╝
+╚════██║╚════██║██╔══██║ ██╔██╗
+███████║███████║██║  ██║██╔╝ ██╗
+╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
+medium · 100x24
+❯ production-api                deploy command
+                                deploy --host {{host}} --tag {{version}}
+Enter connect • T themes • ? help",
+  "wideDark": "███████╗███████╗██╗  ██╗██╗  ██╗
+██╔════╝██╔════╝██║  ██║╚██╗██╔╝
+███████╗███████╗███████║ ╚███╔╝
+╚════██║╚════██║██╔══██║ ██╔██╗
+███████║███████║██║  ██║██╔╝ ██╗
+╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
+wide · 140x40
+❯ production-api                deploy command
+                                deploy --host {{host}} --tag {{version}}
+Enter connect • T themes • ? help",
+}
+`;

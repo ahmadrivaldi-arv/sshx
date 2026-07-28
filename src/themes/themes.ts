@@ -16,8 +16,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: 'terminal',
     text: 'terminal',
     favorite: 'yellow',
+    success: 'green',
     warning: 'yellow',
     danger: 'red',
+    selected: '#f97316',
     decorated: true,
     useConnectionColors: true,
     source: 'built-in'
@@ -31,8 +33,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: 'terminal',
     text: 'terminal',
     favorite: 'terminal',
+    success: 'green',
     warning: 'yellow',
     danger: 'red',
+    selected: 'terminal',
     decorated: false,
     useConnectionColors: false,
     source: 'built-in'
@@ -46,8 +50,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: 'terminal',
     text: 'terminal',
     favorite: 'terminal',
+    success: 'terminal',
     warning: 'terminal',
     danger: 'terminal',
+    selected: 'terminal',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -61,8 +67,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: '#44475a',
     text: '#f8f8f2',
     favorite: '#f1fa8c',
+    success: '#50fa7b',
     warning: '#ffb86c',
     danger: '#ff5555',
+    selected: '#bd93f9',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -76,8 +84,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: '#4c566a',
     text: '#eceff4',
     favorite: '#ebcb8b',
+    success: '#a3be8c',
     warning: '#d08770',
     danger: '#bf616a',
+    selected: '#88c0d0',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -91,8 +101,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: '#45475a',
     text: '#cdd6f4',
     favorite: '#f9e2af',
+    success: '#a6e3a1',
     warning: '#fab387',
     danger: '#f38ba8',
+    selected: '#cba6f7',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -106,8 +118,10 @@ export const builtInThemes: readonly ThemeDefinition[] = [
     border: '#3b4261',
     text: '#c0caf5',
     favorite: '#e0af68',
+    success: '#9ece6a',
     warning: '#ff9e64',
     danger: '#f7768e',
+    selected: '#7aa2f7',
     decorated: true,
     useConnectionColors: false,
     source: 'built-in'
@@ -130,10 +144,12 @@ export const getThemeDefinition = (name: ThemeName): ThemeDefinition => {
 
 export const resolveTheme = (
   config: ThemeConfig,
-  themeDefinition?: ThemeDefinition
+  themeDefinition?: ThemeDefinition,
+  options: { noColor?: boolean } = {}
 ): ResolvedTheme => {
   const definition = themeDefinition ?? getThemeDefinition(config.name);
-  const resolveColor = (color: string): string => (color === 'terminal' ? '' : color);
+  const resolveColor = (color: string): string =>
+    options.noColor || color === 'terminal' ? '' : color;
   const accent = config.accentColor ?? definition.accent;
 
   return {
@@ -143,8 +159,11 @@ export const resolveTheme = (
     border: resolveColor(definition.border),
     text: resolveColor(definition.text),
     favorite: resolveColor(definition.favorite),
+    success: resolveColor(definition.success),
     warning: resolveColor(definition.warning),
     danger: resolveColor(definition.danger),
+    selected: resolveColor(definition.selected),
+    useConnectionColors: options.noColor ? false : definition.useConnectionColors,
     ...(config.accentColor ? { configuredAccent: config.accentColor } : {}),
     compact: config.compact,
     ascii: config.ascii

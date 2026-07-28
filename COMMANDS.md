@@ -1,6 +1,6 @@
 # Command Reference
 
-This is the complete command-line reference for Sshx v1.1.0. Run
+This is the complete command-line reference for Sshx v1.2.0. Run
 `sshx <command> --help` for the same options in the terminal.
 
 ## Global
@@ -233,15 +233,22 @@ sshx logs --path
 
 ## TUI command palette
 
-Press `:` and fuzzy-search these commands:
+Press `:` and fuzzy-search grouped commands. Recent commands appear first when
+the query is empty, and available direct shortcuts are shown on the right.
 
 ```text
 :add
 :edit
 :delete
-:import <file> [--apply] [--strategy=skip|overwrite|rename]
+:import [file] [--apply] [--strategy=skip|overwrite|rename]
 :export <file>
 :logs
-:theme <name>
+:theme [name]
 :snippet <query>
+:help
+:about
 ```
+
+Without a file, `:import` previews `~/.ssh/config`. Without a name, `:theme`
+opens the native theme picker. Press `T` to open that picker directly, `?` for
+contextual help, and `Tab` to switch list/detail panels on narrow terminals.

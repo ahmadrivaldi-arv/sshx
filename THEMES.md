@@ -3,6 +3,11 @@
 Sshx themes can be installed outside the application, shared as a single JSON
 file, and selected without rebuilding Sshx.
 
+From the TUI, press `T` (or run `:theme`) to browse installed themes. Moving
+with `Up`/`Down` previews a theme temporarily. `Enter` offers **Apply &
+restart**, **Apply next launch**, and **Cancel**. Cancel and `Esc` restore the
+theme that was active before opening the picker.
+
 ## Light and Dark Terminals
 
 The built-in `default`, `minimal`, and `mono` themes inherit the terminal's own
@@ -16,6 +21,10 @@ sshx theme set default
 The `dracula`, `nord`, `catppuccin`, and `tokyo-night` themes intentionally use
 their named dark palettes. Custom themes also use explicit colors, so their
 author should state whether they target a light or dark terminal.
+
+Sshx never sets a terminal background color. Set `NO_COLOR=1` to disable all
+foreground colors, including per-connection colors, while keeping borders,
+labels, selection markers, and ASCII/Unicode preferences intact.
 
 ## Install a Theme
 
@@ -71,8 +80,10 @@ sshx theme set ocean
     "border": "#224466",
     "text": "#e6f7ff",
     "favorite": "#ffee88",
+    "success": "#55dd99",
     "warning": "#ffaa44",
-    "danger": "#ff5566"
+    "danger": "#ff5566",
+    "selected": "#66ccff"
   },
   "decorated": true,
   "useConnectionColors": false
@@ -85,6 +96,8 @@ Rules:
 - The filename must be `<name>.json` when copied directly.
 - Built-in theme names are reserved.
 - Every color uses six-digit `#RRGGBB` format.
+- `success` and `selected` are optional semantic colors; both fall back to
+  `accent` so themes made before v1.2 remain compatible.
 - `decorated` controls borders and decorative branding and defaults to `true`.
 - `useConnectionColors` allows per-connection colors and defaults to `false`.
 - Theme files contain data only; Sshx never executes code from them.
