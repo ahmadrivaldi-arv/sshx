@@ -141,7 +141,12 @@ Restore options:
 
 `replace` replaces the complete current vault. Backups include configuration,
 connection metadata, recents, snippets, and theme preferences, but exclude
-passwords and password secret references.
+passwords and password secret references. On the same machine, restore preserves
+the existing secure-vault reference when a connection ID or full SSH endpoint
+matches. Restoring on another machine still requires entering passwords again.
+If an earlier replace restore removed a local reference, running the restore
+again can reconnect an existing credential that is still present in the secure
+vault under the same connection ID.
 
 ## Command snippets
 

@@ -37,6 +37,7 @@ These instructions apply to the entire Sshx repository.
 - Confirmed TUI theme changes must offer `Apply & restart`, `Apply next launch`, and `Cancel`; canceling or pressing `Esc` must restore the original theme without disrupting the current session.
 - Reserve the large Sshx wordmark for onboarding and About screens. Use a compact mark in the main UI and avoid placing decorative branding in contextual help or narrow layouts.
 - Prefer restrained semantic color, clear hierarchy, responsive layouts, consistent key hints, and accessible states over decorative contrast or excessive animation.
+- Never write password values or secret-store references into backups. Same-machine restore should preserve an existing local vault reference only when the connection ID or full SSH endpoint matches.
 
 ## Website Architecture
 

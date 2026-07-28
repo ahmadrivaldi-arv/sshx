@@ -33,6 +33,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `:import` without a file now previews the default `~/.ssh/config`.
 - `:theme` without a name opens the native theme picker.
 
+### Fixed
+
+- `restore --strategy replace` now preserves matching local password-vault
+  references and recovers orphaned references by connection ID instead of
+  requiring passwords to be entered again on the same machine. Backup files
+  still contain neither passwords nor secret references.
+
 ## [1.1.0] - 2026-07-27
 
 ### Added
