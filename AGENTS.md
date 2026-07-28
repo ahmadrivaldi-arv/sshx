@@ -33,6 +33,9 @@ These instructions apply to the entire Sshx repository.
 - Neutral themes and core UI text must inherit terminal foreground/background colors so light and dark terminal appearances remain readable.
 - Named palette themes may intentionally target light or dark terminals, but their intended appearance must be documented.
 - External themes should remain installable and shareable without rebuilding Sshx, following the shell-theme ecosystem direction documented in the roadmap.
+- Installed themes must be selectable from the TUI as well as the CLI. The TUI picker must support `Up`/`Down` preview navigation and must not persist a preview until the user confirms it.
+- Confirmed TUI theme changes must offer `Apply & restart`, `Apply next launch`, and `Cancel`; canceling or pressing `Esc` must restore the original theme without disrupting the current session.
+- Reserve the large Sshx wordmark for onboarding and About screens. Use a compact mark in the main UI and avoid placing decorative branding in contextual help or narrow layouts.
 - Prefer restrained semantic color, clear hierarchy, responsive layouts, consistent key hints, and accessible states over decorative contrast or excessive animation.
 
 ## Website Architecture

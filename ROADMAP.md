@@ -127,9 +127,14 @@ Focus: establish a consistent, responsive visual system that feels modern withou
 - [ ] Redesign the main screen as a responsive connection-list and detail split view.
 - [ ] Redesign the snippet manager as a list and command-preview split view.
 - [ ] Modernize the command palette with grouped actions, recent commands, descriptions, and right-aligned shortcuts.
+- [ ] Add a native TUI theme picker so installed themes can be browsed without running a CLI command.
+- [ ] Support `Up`/`Down` theme navigation with a temporary live preview that does not immediately persist the selection.
+- [ ] Confirm theme selection with `Apply & restart`, `Apply next launch`, and `Cancel` actions; canceling must restore the original theme.
 - [ ] Add a reusable key-hint component with consistent styling across screens.
 - [ ] Add contextual help with `?` based on the active screen and interaction mode.
 - [ ] Add first-run onboarding with SSH config import, manual connection, and documentation actions.
+- [ ] Add an About screen with the Sshx wordmark, version, active theme, documentation, repository, npm, license, and update information.
+- [ ] Use a large responsive Sshx wordmark only in onboarding and About, with a compact brand mark in space-constrained screens.
 - [ ] Add wide, medium, and narrow terminal layouts with graceful single-panel fallback.
 - [ ] Add clear, restrained progress indicators and transient status messages for long-running actions.
 - [ ] Highlight snippet placeholders and clearly distinguish insert-only from insert-and-execute actions.
